@@ -58,7 +58,8 @@ document.addEventListener('click',e=>{const el=e.target.closest('.tip-i');if(el)
 document.addEventListener('keydown',e=>{if(e.key==='Escape')hideTip()});addEventListener('scroll',()=>{if(touch)hideTip()},{passive:true});
 /* ---------- theme ---------- */
 function setThemeBtn(){const d=document.documentElement.dataset.theme==='dark';$('#theme').innerHTML=ic(d?'sun':'moon',22);$('#theme').setAttribute('aria-pressed',d)}
-$('#theme').onclick=()=>{const d=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=d;localStorage.setItem('sl-theme',d);setThemeBtn();render()};
+$('#theme').onclick=()=>{const d=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=d;localStorage.setItem('sl-theme',d);setThemeBtn();window._keep=snapState();render()};
+function snapState(){if(!$('#mapbox')||!map)return null;const d=is3d()&&m3;const t=document.querySelector('.tab[aria-selected=true]');return {L:[...document.querySelectorAll('.layers input:checked')].map(i=>i.dataset.l),d3:is3d(),cam:d?{center:m3.getCenter(),zoom:m3.getZoom(),pitch:m3.getPitch(),bearing:m3.getBearing()}:null,ll:{c:map.getCenter(),z:map.getZoom()},tab:t&&t.id,y:scrollY}}
 /* ---------- routing: ?pc=, ?d=, legacy #/ ---------- */
 function go(q,push=true){const u=new URL(location.href);u.hash='';u.search=q?'?'+q:'';if(push)history.pushState(null,'',u);render();app.focus({preventScroll:true});scrollTo({top:0,behavior:reduce?'auto':'smooth'})}
 addEventListener('popstate',render);
@@ -199,7 +200,11 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
  map.addLayer(ML.crimes);
  $('.layers').onchange=e=>{const k=e.target.dataset.l,l=ML[k];e.target.checked?map.addLayer(l):map.removeLayer(l);if(k=='heat'){const ci=document.querySelector('input[data-l=crimes]');if(e.target.checked){if(ci.checked){ci.checked=false;map.removeLayer(ML.crimes)}if(!is3d())set3d(true);else heatView()}else if(!ci.checked){ci.checked=true;map.addLayer(ML.crimes)}}m3vis()};
  $('#recentre').onclick=()=>{if(is3d()&&m3)m3.jumpTo(view3d());else map.fitBounds(area.getBounds())};
- $('#mode3d').onclick=()=>set3d(!is3d());if(sessionStorage.getItem('sl-3d')==='1')set3d(true);
+ $('#mode3d').onclick=()=>set3d(!is3d());const K=window._keep;window._keep=null;
+ if(K){const t=K.tab&&$('#'+K.tab);if(t)sel(t);document.querySelectorAll('.layers input').forEach(i=>{const on=K.L.includes(i.dataset.l);if(on!==i.checked){i.checked=on;on?map.addLayer(ML[i.dataset.l]):map.removeLayer(ML[i.dataset.l])}});map.setView(K.ll.c,K.ll.z,{animate:false});
+  window._cam=K.cam;if(K.d3)set3d(true);else m3vis();const sy=()=>scrollTo({top:K.y,behavior:'instant'});sy();requestAnimationFrame(sy);setTimeout(sy,150);setTimeout(sy,600)}
+ else if(sessionStorage.getItem('sl-3d')==='1')set3d(true);
+ $('#mapbox').addEventListener('pointerdown',()=>hideTip(),true);
  const fsb=$('#fs'),box=$('#mapbox');const setFs=on=>{box.classList.toggle('fs',on);fsb.innerHTML=ic(on?'shrink':'expand');fsb.setAttribute('aria-label',on?'Exit full screen':'Full screen map');setTimeout(()=>{map.invalidateSize();m3&&m3.resize()},60)};
  fsb.onclick=()=>setFs(!box.classList.contains('fs'));document.addEventListener('keydown',function k(e){if(e.key==='Escape'&&box.classList.contains('fs'))setFs(false)});
  setTimeout(()=>map&&map.invalidateSize(),100)}
@@ -214,16 +219,16 @@ const is3d=()=>$('#mode3d')&&$('#mode3d').getAttribute('aria-pressed')==='true';
 function loadMl(){return _mlp||(_mlp=new Promise((res,rej)=>{const l=document.createElement('link');l.rel='stylesheet';l.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(l);
  const s=document.createElement('script');s.src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)}))}
 function heatOn(){const h=document.querySelector('input[data-l=heat]');return h&&h.checked}
-function view3d(){const c=window._ctx,sm=innerWidth<600;return heatOn()?{center:[c.lo,c.la-0.004],zoom:sm?12.9:13.7,pitch:50,bearing:-20}:{center:[c.lo,c.la],zoom:15.6,pitch:60,bearing:-25}}
+function view3d(){if(window._cam){const v=window._cam;window._cam=null;return v}const c=window._ctx,sm=innerWidth<600;return heatOn()?{center:[c.lo,c.la-0.004],zoom:sm?13.2:13.7,pitch:50,bearing:-20}:{center:[c.lo,c.la],zoom:15.6,pitch:60,bearing:-25}}
 function heatView(){m3&&m3.jumpTo(view3d())}
 function circlePoly(la,lo,mi,n=72){const pts=[];for(let i=0;i<=n;i++){const a=i/n*2*Math.PI;pts.push([lo+mi/69.17/Math.cos(la*Math.PI/180)*Math.cos(a)*1,la+mi/69.17*Math.sin(a)])}return pts}
 function fc(arr,f){return {type:'FeatureCollection',features:arr.map(p=>({type:'Feature',geometry:{type:'Point',coordinates:[p[1],p[0]]},properties:f(p)}))}}
 function heatGrid(c){const dla=0.0018,dlo=0.0029,cells={};c.near.forEach(p=>{const i=Math.floor(p[0]/dla),k=Math.floor(p[1]/dlo),key=i+'_'+k;cells[key]=(cells[key]||0)+1});
  const ent=Object.entries(cells),vals=ent.map(e=>e[1]).sort((x,y)=>x-y),mx=vals.at(-1)||1,q=v=>{let lo=0,hi=vals.length;while(lo<hi){const m=(lo+hi)>>1;vals[m]<v?lo=m+1:hi=m}return vals.length>1?lo/(vals.length-1):1};
- const rM=40/111320;const qs=[0,.25,.5,.75,1].map(t=>vals[Math.min(vals.length-1,Math.round(t*(vals.length-1)))]||0);
+ const sm=innerWidth<600,rM=(sm?60:40)/111320;const qs=[0,.25,.5,.75,1].map(t=>vals[Math.min(vals.length-1,Math.round(t*(vals.length-1)))]||0);
  return {mx,qs,fc:{type:'FeatureCollection',features:ent.map(([key,n])=>{const [i,k]=key.split('_').map(Number),cy=(i+.5)*dla,cx=(k+.5)*dlo,co=Math.cos(cy*Math.PI/180),ring=[];
  for(let s=0;s<=16;s++){const a=s/16*2*Math.PI;ring.push([cx+rM/co*Math.cos(a),cy+rM*Math.sin(a)])}
- return {type:'Feature',properties:{n,q:q(n),h:Math.max(12,Math.sqrt(n/mx)*280)},geometry:{type:'Polygon',coordinates:[ring]}}})}}}
+ return {type:'Feature',properties:{n,q:q(n),h:Math.max(sm?24:12,Math.sqrt(n/mx)*(sm?320:280))},geometry:{type:'Polygon',coordinates:[ring]}}})}}}
 function heatLegend(on){const lg=$('.legend');if(!lg)return;let h=$('#heatlg');if(!on){h&&h.remove();return}if(h)return;const g=m3&&m3._slHeat;if(!g)return;
  h=document.createElement('div');h.id='heatlg';h.innerHTML=`<b>Crimes per 200m square</b><div class="hbar"></div><div class="hnum">${g.qs.map(v=>`<span>${v}</span>`).join('')}</div><div class="muted" style="font-size:12px">Taller and redder = more crimes</div>`;lg.appendChild(h)}
 function m3vis(){const hi=document.querySelector('input[data-l=heat]');heatLegend(!!(hi&&hi.checked&&is3d()));if(!m3||!m3._slReady)return;document.querySelectorAll('.layers input').forEach(i=>{const v=i.checked?'visible':'none';(m3._slIds[i.dataset.l]||[]).forEach(id=>m3.getLayer(id)&&m3.setLayoutProperty(id,'visibility',v))})}
@@ -246,7 +251,7 @@ async function set3d(on){const b=$('#mode3d'),box=$('#mapbox');if(!b)return;b.se
   const hg=heatGrid(c);M._slHeat=hg;M.addSource('sl-heat',{type:'geojson',data:hg.fc});
   M.addLayer({id:'sl-heat',type:'fill-extrusion',source:'sl-heat',layout:{visibility:'none'},paint:{'fill-extrusion-height':['get','h'],'fill-extrusion-opacity':.65,'fill-extrusion-vertical-gradient':true,'fill-extrusion-color':['interpolate',['linear'],['get','q'],0,'#fde68a',.4,'#fbbf24',.7,'#f97316',.9,'#dc2626',1,'#7f1d1d']}});
   const hp=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8});const hs=e=>{const f=e.features[0];M.getCanvas().style.cursor='pointer';hp.setLngLat(e.lngLat).setHTML(`<b>${fmt(f.properties.n)} crime${f.properties.n==1?'':'s'}</b><br>in this 200m square, last 12 months`).addTo(M)};
-  M.on('mousemove','sl-heat',hs);M.on('click','sl-heat',hs);M.on('mouseleave','sl-heat',()=>{M.getCanvas().style.cursor='';hp.remove()});
+  let pin=false;M.on('mousemove','sl-heat',hs);M.on('click','sl-heat',e=>{pin=true;hs(e)});M.on('mouseleave','sl-heat',()=>{M.getCanvas().style.cursor='';if(!pin)hp.remove()});M.on('click',e=>{if(M.getLayer('sl-heat')&&!M.queryRenderedFeatures(e.point,{layers:['sl-heat']}).length){pin=false;hp.remove()}});
   const ids={heat:['sl-heat']};
   const pt=(k,data,cluster,r=7)=>{const col=LAYERS[k].c;M.addSource('sl-'+k,{type:'geojson',data,cluster,clusterRadius:48,clusterMaxZoom:16});
    ids[k]=['sl-'+k+'-pt'];M.addLayer({id:'sl-'+k+'-pt',type:'circle',source:'sl-'+k,filter:['!',['has','point_count']],paint:{'circle-color':col,'circle-radius':r,'circle-stroke-color':'#fff','circle-stroke-width':2,'circle-pitch-alignment':'viewport'}});
