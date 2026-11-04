@@ -111,3 +111,6 @@ button.near-go{all:unset;cursor:pointer;display:contents}
 #share .sl{margin-left:2px}
 @media(max-width:600px){.sumbar{position:static}.sumbar .wrap{flex-wrap:wrap}.sumbar .wrap>div:first-child{flex:1}.schips{flex-basis:100%;order:3}#share .sl{display:none}#share{width:44px;padding:0}
 .tabs{top:var(--hdr)}.mapbox{height:46vh;min-height:300px}.legend{display:none}.mapbox.fs .legend{display:grid}.layers{gap:6px}.lt{padding:0 12px 0 8px;font-size:14px}}
+#map3d{position:absolute;inset:0;z-index:500;background:var(--sk)}#map3d[hidden]{display:none}
+#mode3d{font:800 15px/1 Inter,system-ui,sans-serif}#mode3d[aria-pressed=true]{background:var(--teal);color:#fff;border-color:var(--teal)}
+.maplibregl-ctrl-group button{width:44px!important;height:44px!important}.maplibregl-popup-content{font:14px/1.45 Inter,system-ui,sans-serif;color:#14213d;border-radius:10px}
