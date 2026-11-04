@@ -37,15 +37,42 @@ def key(u):
 urls=sorted(set(re.findall(r'https://assets[^"\\]+latest_inspections_as_at_[^"\\]+\.csv',api)),key=key)
 of={}; ofdate=key(urls[-1])
 for r in csv.DictReader(open(dl(urls[-1],os.path.join(RAW,"ofsted.csv")),encoding="latin-1")):
-    of[r["URN"]]=(r.get("Latest OEIF overall effectiveness",""),r.get("Inspection start date of latest OEIF graded inspection",""))
-GR={"1":"Outstanding","2":"Good","3":"Requires improvement","4":"Inadequate"}
+    g=r.get("Latest OEIF overall effectiveness",""); d=r.get("Inspection start date of latest OEIF graded inspection","")
+    m=re.search(r"remains (Outstanding|Good|Requires improvement|Inadequate)",r.get("Ungraded inspection overall outcome",""),re.I)
+    if g not in("1","2","3","4") and m: g={"outstanding":"1","good":"2","requires improvement":"3","inadequate":"4"}[m[1].lower()]; d=r.get("Date of latest ungraded inspection","")+" (ungraded check)"
+    elif g=="Not judged": g="NJ"
+    of[r["URN"]]=(g,d)
+links=collections.defaultdict(list)
+for d in range(3):
+    D=(datetime.date.today()-datetime.timedelta(days=d)).strftime("%Y%m%d")
+    try: lp=dl(f"https://ea-edubase-api-prod.azurewebsites.net/edubase/downloads/public/links_edubasealldata{D}.csv",os.path.join(RAW,"links.csv")); break
+    except Exception as e: lp=None
+if lp:
+    for r in csv.DictReader(open(lp,encoding="latin-1")):
+        if r["LinkType"].startswith("Predecessor"): links[r["URN"]].append(r["LinkURN"])
+# older Ofsted MI files keep grades for closed predecessor URNs
+for u in urls[-1:0:-6][1:4]:
+    try:
+        for r in csv.DictReader(io.StringIO(urllib.request.urlopen(urllib.request.Request(u,headers=UA),timeout=120).read().decode("latin-1"))):
+            g=r.get("Latest OEIF overall effectiveness") or r.get("Overall effectiveness","")
+            if r["URN"] not in of and g in("1","2","3","4"): of[r["URN"]]=(g,r.get("Inspection start date of latest OEIF graded inspection") or r.get("Inspection start date",""))
+    except Exception as e: print("old MI",e)
+def grade(urn,depth=0):
+    o=of.get(urn,("",""))
+    if o[0] in("1","2","3","4") or depth>2: return o,False
+    for p in links.get(urn,[]):
+        g,_=grade(p,depth+1)
+        if g[0] in("1","2","3","4"): return g,True
+    return o,False
+GR={"1":"Outstanding","2":"Good","3":"Requires improvement","4":"Inadequate","NJ":"No overall grade (post-2024 inspection)"}
 rows=[r for r in csv.DictReader(open(gias,encoding="latin-1")) if r["LA (name)"] in("Cambridgeshire","Peterborough") and r["EstablishmentStatus (name)"]=="Open"]
 g=geocode([r["Postcode"] for r in rows]); res=[]
 for r in rows:
     x=g.get(r["Postcode"].upper())
     if not x: continue
-    o=of.get(r["URN"],("",""))
-    res.append([round(x[0],5),round(x[1],5),r["EstablishmentName"],r["PhaseOfEducation (name)"],r["TypeOfEstablishment (name)"],GR.get(o[0],""),o[1],r["URN"]])
+    o,pred=grade(r["URN"])
+    res.append([round(x[0],5),round(x[1],5),r["EstablishmentName"],r["PhaseOfEducation (name)"],r["TypeOfEstablishment (name)"],GR.get(o[0],""),o[1]+(" (predecessor school)" if pred and o[0] else ""),r["URN"]])
+print("schools graded",sum(1 for x in res if x[5]),"of",len(res),"via predecessor",sum(1 for x in res if "predecessor" in x[6]))
 w("schools.json",res)
 # --- NaPTAN: 050 Cambridgeshire, 059 Peterborough
 from pyproj import Transformer
@@ -56,8 +83,12 @@ for a in ("050","059"):
         if r.get("Status","active").lower()!="active" or not r["Easting"]: continue
         lng,lat=TR.transform(float(r["Easting"]),float(r["Northing"])); lat,lng=round(lat,5),round(lng,5)
         if r["StopType"] in("BCT","BCS","BCQ"): stops.append([lat,lng,r["CommonName"]+(" ("+r["Indicator"]+")" if r["Indicator"] else "")])
-        elif re.search(r"Rail(way)? Station",r["CommonName"]) and r["StopType"] not in("TXR","TAX"):
-            n=re.sub(r"\s*(Rail|Railway) Station.*","",r["CommonName"]).strip()+" station"; rail.setdefault(n,[lat,lng,n])
+
+for r in csv.DictReader(io.StringIO(urllib.request.urlopen(urllib.request.Request("https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=csv&atcoAreaCodes=910",headers=UA),timeout=180).read().decode("utf-8-sig"))):
+    if r["StopType"]!="RLY" or r.get("Status","active").lower()!="active" or not r["Easting"]: continue
+    lng,lat=TR.transform(float(r["Easting"]),float(r["Northing"]))
+    if 52.0<lat<52.75 and -0.55<lng<0.55:
+        n=re.sub(r"\s*Rail Station.*","",r["CommonName"]).strip()+" station"; rail.setdefault(n,[round(lat,5),round(lng,5),n])
 w("stops.json",stops); w("rail.json",list(rail.values()))
 # --- HM Land Registry Price Paid (last 12 months of available data)
 y=datetime.date.today().year; sales=[]
