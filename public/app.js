@@ -48,7 +48,7 @@ function showTip(el){const t=el.getAttribute('data-tip');if(!t)return;tipEl=el;t
 function hideTip(){if(tipEl){tipEl.removeAttribute('aria-describedby');tipEl.removeAttribute('aria-expanded')}tipEl=null;tip.classList.remove('show')}
 const touch=matchMedia('(hover:none)').matches;
 document.addEventListener('mouseover',e=>{if(touch)return;const el=e.target.closest('[data-tip]');if(el)showTip(el);else if(tipEl&&!tipEl.classList.contains('tip-i'))hideTip()});
-document.addEventListener('focusin',e=>{const el=e.target.closest('[data-tip]');el?showTip(el):hideTip()});
+document.addEventListener('focusin',e=>{const el=e.target.closest('[data-tip]');if(el){showTip(el);tipT=Date.now()}else hideTip()});let tipT=0;
 document.addEventListener('focusout',()=>hideTip());
-document.addEventListener('click',e=>{const el=e.target.closest('.tip-i');if(el){e.preventDefault();tipEl===el&&tip.classList.contains('show')?hideTip():showTip(el)}else if(!e.target.closest('[data-tip]'))hideTip()});
+document.addEventListener('click',e=>{const el=e.target.closest('.tip-i');if(el){e.preventDefault();tipEl===el&&tip.classList.contains('show')&&Date.now()-tipT>400?hideTip():showTip(el)}else if(!e.target.closest('[data-tip]'))hideTip()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')hideTip()});addEventListener('scroll',()=>{if(touch)hideTip()},{passive:true});
