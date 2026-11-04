@@ -65,7 +65,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}tbody tr:hover td{b
 .layers{display:flex;flex-wrap:wrap;gap:8px}
 .lt{min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:0 14px 0 10px;border:1px solid var(--line);border-radius:999px;background:var(--card);font-size:15px;font-weight:600;cursor:pointer;user-select:none;color:var(--ink)}
 .lt input{position:absolute;opacity:0;width:1px;height:1px}.lt .dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;border:2px solid var(--card);box-shadow:0 0 0 1px var(--line)}
-.lt:has(input:checked){border-color:currentColor;box-shadow:inset 0 0 0 1px currentColor}.lt:has(input:not(:checked)) .dot{filter:grayscale(1);opacity:.45}.lt:has(input:focus-visible){outline:3px solid var(--amber);outline-offset:2px}
+.lt:has(input:checked){border-color:currentColor;box-shadow:inset 0 0 0 1px currentColor;background:color-mix(in srgb,currentColor 12%,var(--card))}.lt:has(input:checked) .t::after{content:' ✓';font-weight:800}.lt:has(input:not(:checked)) .dot{filter:grayscale(.6);opacity:.75}.lt:has(input:focus-visible){outline:3px solid var(--amber);outline-offset:2px}
 .lt span.t{color:var(--ink)}
 .mapctl{position:absolute;top:12px;right:12px;z-index:800;display:flex;flex-direction:column;gap:8px}
 .mapctl button{width:44px;height:44px;border-radius:12px;background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:var(--sh);cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -114,3 +114,6 @@ button.near-go{all:unset;cursor:pointer;display:contents}
 #map3d{position:absolute;inset:0;z-index:500;background:var(--sk)}#map3d[hidden]{display:none}
 #mode3d{font:800 15px/1 Inter,system-ui,sans-serif}#mode3d[aria-pressed=true]{background:var(--teal);color:#fff;border-color:var(--teal)}
 .maplibregl-ctrl-group button{width:44px!important;height:44px!important}.maplibregl-popup-content{font:14px/1.45 Inter,system-ui,sans-serif;color:#14213d;border-radius:10px}
+#heatlg{grid-column:1/-1;border-top:1px solid var(--line);padding-top:6px;margin-top:2px;display:block}#heatlg .hbar{height:10px;border-radius:5px;background:linear-gradient(90deg,#fde68a,#fbbf24 40%,#f97316 70%,#dc2626 90%,#7f1d1d);margin:4px 0 2px}
+#heatlg .hnum{display:flex;justify-content:space-between;font-size:12px;font-variant-numeric:tabular-nums}
+@media(max-width:600px){.mapbox:has(#heatlg) .legend{display:grid;grid-template-columns:1fr;max-width:200px}.mapbox:has(#heatlg) .legend>span{display:none}}
