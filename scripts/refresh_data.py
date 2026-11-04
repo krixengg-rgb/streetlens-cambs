@@ -40,12 +40,30 @@ cats=json.loads(get(API+"/crime-categories"));catname={c["url"]:c["name"] for c 
 catlist=sorted({c["category"] for _,_,c in seen.values()})
 def blank(): return {"total":0,"byType":{k:0 for k in catlist},"monthly":{m:0 for m in months}}
 dist={c:blank() for c in DIST}; allc=blank(); pts=[]
+OB=["Charged / summonsed","Out-of-court resolution","No suspect identified","Unable to prosecute / not in public interest","Under investigation","Other / transferred","No outcome (ASB)"]
+def ob(c):
+    o=(c.get("outcome_status") or {}).get("category")
+    if not o: return 6
+    l=o.lower()
+    if any(k in l for k in ["charged","court","prison","fined","sentence","discharge","compensation","otherwise dealt","not guilty","deprived","summons"]): return 0
+    if any(k in l for k in ["caution","local resolution","penalty","warning","community resolution"]): return 1
+    if "no suspect" in l: return 2
+    if any(k in l for k in ["unable","public interest"]): return 3
+    if any(k in l for k in ["under investigation","status update"]): return 4
+    return 5
+raw_out=__import__("collections").Counter()
 for code,m,c in seen.values():
     for agg in (dist[code],allc):
-        agg["total"]+=1; agg["byType"][c["category"]]+=1; agg["monthly"][m]+=1
-    pts.append([round(float(c["location"]["latitude"]),5),round(float(c["location"]["longitude"]),5),catlist.index(c["category"]),months.index(m)])
+        agg["total"]+=1; agg["byType"][c["category"]]+=1; agg["monthly"][m]+=1; agg.setdefault("outcomes",[0]*7)[ob(c)]+=1
+    pts.append([round(float(c["location"]["latitude"]),5),round(float(c["location"]["longitude"]),5),catlist.index(c["category"]),months.index(m),ob(c)]); raw_out[(c.get("outcome_status") or {}).get("category")]+=1
 tp=sum(pop.values())
-summary={"generated":time.strftime("%Y-%m-%d"),"months":months,"popYear":popyear,
+ss=[]
+for m in months:
+    for x in json.loads(get(f"{API}/stops-force?force=cambridgeshire&date={m}")):
+        if x.get("location"): ss.append([round(float(x["location"]["latitude"]),5),round(float(x["location"]["longitude"]),5),months.index(m)])
+json.dump(ss,open(os.path.join(OUT,"stopsearch.json"),"w"),separators=(",",":"))
+print("stops",len(ss)); print(raw_out.most_common())
+summary={"outcomeBuckets":OB,"generated":time.strftime("%Y-%m-%d"),"months":months,"popYear":popyear,
  "categories":[{"id":k,"name":catname.get(k,k)} for k in catlist],
  "overview":{**allc,"name":"Cambridgeshire & Peterborough","population":tp,"rate":round(allc["total"]/tp*1000,1)},
  "districts":[{"code":c,"name":DIST[c][0],"population":pop[c],"rate":round(dist[c]["total"]/pop[c]*1000,1),**dist[c]} for c in DIST]}
