@@ -157,9 +157,10 @@ function nav(cur){$('#nav').innerHTML=`<a href="./" data-nav="home" ${!cur||cur=
 function render(){hideTip();killCharts();if(map){map.remove();map=null}
  const q=new URLSearchParams(location.search),h=decodeURIComponent(location.hash.slice(2));
  if(h){const u=new URL(location.href);u.hash='';if(h.startsWith('postcode/'))u.search='?pc='+h.slice(9);else if(h)u.search='?d='+h;history.replaceState(null,'',u);return render()}
- const pc=q.get('pc'),d=q.get('d');nav(d||'');
+ const pc=q.get('pc'),d=q.get('d');
  if(q.get('compare')!=null){nav('compare');return compareView(q.get('a'),q.get('b'))}
- if(pc)return dashboard(pc);const dist=S.districts.find(x=>slug(x.name)==d);const title=(dist?dist.name+' — ':'')+'StreetLens — Cambridgeshire area insights';
+ if(pc){nav('pc');return dashboard(pc)}
+ const dist=S.districts.find(x=>slug(x.name)==d);nav(d||'home');const title=(dist?dist.name+' — ':'')+'StreetLens — Cambridgeshire area insights';
  setMeta(title,dist?`${dist.name}: ${dist.rate} crimes per 1,000 residents, solve rate and house prices from open UK data.`:'Crime, outcomes, schools, GPs, transport and house prices for any Cambridgeshire or Peterborough postcode.',location.origin+location.pathname+(d?'?d='+encodeURIComponent(d):''));home(dist)}
 /* ---------- search component ---------- */
 function searchBox(){return `<form class="search" id="sf" role="search" autocomplete="off"><div class="sbox">${ic('search',22)}
@@ -251,6 +252,7 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
   return stateView(`We couldn't find “${esc(raw)}”`,'Check the postcode is complete and spelled correctly, for example PE29 3TN.'+(sug.length?' Did you mean: '+sug.map(s=>`<a href="?pc=${encodeURIComponent(s)}" data-q="pc=${encodeURIComponent(s)}">${s}</a>`).join(', ')+'?':''),'search')}
  const R=r.result,{latitude:la,longitude:lo,postcode}=R,ad=R.admin_district,dist=S.districts.find(d=>d.name==ad);
  if(!dist)return stateView(`${postcode} is outside our area`,`${esc(postcode)} is in ${esc(ad||'an unknown area')}. StreetLens currently covers Cambridgeshire and Peterborough only. Try one of these instead:`,'map');
+ nav(slug(dist.name));
  const rMi=getR(),degPad=rMi*0.02;
  setMeta(`${postcode} · ${ad} — StreetLens`,`Crime, outcomes, schools and homes within ${rMi===0.5?'½':rMi} mile${rMi===1?'':'s'} of ${postcode} (${R.admin_ward?R.admin_ward+', ':''}${ad}).`,location.origin+location.pathname+'?pc='+encodeURIComponent(postcode));
  const [nearAll,GP,DE,SC,ST,RA,SS]=await Promise.all([loadPointsNear(la,lo,rMi), ...['gp','dentists','schools','stops','rail','stopsearch'].map(lj)]);
