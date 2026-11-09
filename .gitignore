@@ -1,2 +1,5 @@
 raw/
 node_modules/
+scripts/__pycache__/
+__pycache__/
+*.pyc
