@@ -1,0 +1,132 @@
+name: Refresh data
+
+on:
+  # Police.uk usually publishes mid-month (~2 months lag). Weekly check
+  # catches variable release dates; we only commit when a newer month exists.
+  schedule:
+    - cron: "0 11 * * 3"   # Wednesdays 11:00 UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Refresh even if no newer police.uk month"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Snapshot previous data
+        run: |
+          mkdir -p /tmp/prev-data
+          cp -a public/data/. /tmp/prev-data/
+          python3 - <<'PY'
+          import json
+          s=json.load(open("public/data/summary.json"))
+          print("site_months", s["months"][0], "→", s["months"][-1], "generated", s["generated"])
+          PY
+
+      - name: Check for newer police.uk month
+        id: check
+        env:
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '0' }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, sys
+          UA={"User-Agent":"StreetLens-cambs-ci"}
+          req=urllib.request.Request("https://data.police.uk/api/crimes-street-dates", headers=UA)
+          dates=sorted(d["date"] for d in json.load(urllib.request.urlopen(req, timeout=60)))
+          api=dates[-1]
+          site=json.load(open("public/data/summary.json"))["months"][-1]
+          force=os.environ.get("FORCE")=="1"
+          print(f"api_latest={api} site_latest={site} force={force}")
+          if not force and api <= site:
+            print("skip=true")
+            with open(os.environ["GITHUB_OUTPUT"],"a") as f: f.write("skip=true\n")
+          else:
+            print("skip=false")
+            with open(os.environ["GITHUB_OUTPUT"],"a") as f: f.write("skip=false\n")
+          PY
+
+      - name: Refresh crime + extras
+        if: steps.check.outputs.skip != 'true'
+        env:
+          FORCE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          if [ "${FORCE_REFRESH:-0}" = "1" ]; then
+            python3 scripts/refresh_data.py --force
+          else
+            python3 scripts/refresh_data.py
+          fi
+          python3 scripts/refresh_extras.py
+          python3 scripts/sanity_check.py /tmp/prev-data
+
+      - name: Restore data on failure
+        if: failure() && steps.check.outputs.skip != 'true'
+        run: |
+          echo "Restoring public/data from pre-refresh snapshot"
+          rm -rf public/data
+          mkdir -p public/data
+          cp -a /tmp/prev-data/. public/data/
+          git checkout -- public/data || true
+
+      - name: Bump cache version + commit
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- public/data; then
+            echo "Data files unchanged after refresh; nothing to commit."
+            exit 0
+          fi
+          # bump ?v=N on style.css and app.js
+          python3 - <<'PY'
+          import re, pathlib
+          p=pathlib.Path("public/index.html")
+          t=p.read_text()
+          m=re.search(r'[?&]v=(\d+)', t)
+          if not m: raise SystemExit("no cache version in index.html")
+          n=int(m.group(1))+1
+          t2=re.sub(r'([?&]v=)\d+', rf'\g<1>{n}', t)
+          p.write_text(t2)
+          print(f"cache version → {n}")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          MONTH=$(python3 -c "import json;print(json.load(open('public/data/summary.json'))['months'][-1])")
+          GEN=$(python3 -c "import json;print(json.load(open('public/data/summary.json'))['generated'])")
+          git add public/data public/index.html
+          git commit -m "data: refresh through ${MONTH} (generated ${GEN})"
+          git push
+
+      - name: Summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          s=json.load(open("public/data/summary.json"))
+          print(f"Live data window: {s['months'][0]} → {s['months'][-1]}")
+          print(f"Generated: {s['generated']}")
+          print(f"Crimes: {s['overview']['total']}")
+          PY
