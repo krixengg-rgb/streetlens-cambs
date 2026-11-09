@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://krixengg-rgb.github.io/streetlens-cambs/public/sitemap.xml

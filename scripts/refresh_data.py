@@ -67,9 +67,10 @@ def main(force=False):
     if len(pop) != len(DIST):
         die(f"population missing for districts: have {list(pop)} need {list(DIST)}")
 
-    months = sorted(all_dates)[-12:]
-    if len(months) != 12:
-        die(f"expected 12 months, got {months}")
+    months_all = sorted(all_dates)[-24:]  # up to 24 for YoY aggregates
+    if len(months_all) < 12:
+        die(f"expected at least 12 months, got {months_all}")
+    months = months_all[-12:]  # map points stay on latest 12
 
     nb2d = {n: c for c, (_, ns) in DIST.items() for n in ns}
     polys = {}
@@ -87,7 +88,7 @@ def main(force=False):
         return n, m, d
 
     seen = {}
-    jobs = [(n, m) for n in nb2d for m in months]
+    jobs = [(n, m) for n in nb2d for m in months_all]
     with cf.ThreadPoolExecutor(6) as ex:
         for n, m, d in ex.map(fetch, jobs):
             for c in d:
@@ -105,7 +106,7 @@ def main(force=False):
         die(f"too few crime categories: {catlist}")
 
     def blank():
-        return {"total": 0, "byType": {k: 0 for k in catlist}, "monthly": {m: 0 for m in months}}
+        return {"total": 0, "byType": {k: 0 for k in catlist}, "monthly": {m: 0 for m in months_all}, "monthly12": {m: 0 for m in months}}
 
     dist = {c: blank() for c in DIST}
     allc = blank()
@@ -140,20 +141,23 @@ def main(force=False):
     raw_out = __import__("collections").Counter()
     for code, m, c in seen.values():
         for agg in (dist[code], allc):
-            agg["total"] += 1
-            agg["byType"][c["category"]] += 1
             agg["monthly"][m] += 1
-            agg.setdefault("outcomes", [0] * 7)[ob(c)] += 1
+            if m in months:
+                agg["total"] += 1
+                agg["byType"][c["category"]] += 1
+                agg.setdefault("outcomes", [0] * 7)[ob(c)] += 1
         loc = c.get("location") or {}
         if not loc.get("latitude") or not loc.get("longitude"):
             continue
-        pts.append([
-            round(float(loc["latitude"]), 5),
-            round(float(loc["longitude"]), 5),
-            catlist.index(c["category"]),
-            months.index(m),
-            ob(c),
-        ])
+        if m in months:
+            pts.append([
+                round(float(loc["latitude"]), 5),
+                round(float(loc["longitude"]), 5),
+                catlist.index(c["category"]),
+                months.index(m),
+                ob(c),
+                # district index for future splits
+            ])
         raw_out[(c.get("outcome_status") or {}).get("category")] += 1
 
     if len(pts) < 40000:
@@ -172,6 +176,15 @@ def main(force=False):
     if len(ss) < 500:
         die(f"too few stop-and-search rows: {len(ss)}")
 
+    # YoY: compare latest 12 months vs previous 12 in months_all
+    def add_yoy(agg):
+        tot=sum(agg["monthly"].get(m,0) for m in months)
+        prev_months=[m for m in months_all if m not in months]
+        prev_tot=sum(agg["monthly"].get(m,0) for m in prev_months) if len(prev_months)>=12 else None
+        agg["yoy"]=round((tot-prev_tot)/prev_tot*100,1) if prev_tot else None
+    for c in DIST: add_yoy(dist[c])
+    add_yoy(allc)
+
     # Stage then replace so a crash mid-write cannot leave empty files
     stage = os.path.join(RAW, "_stage_crime")
     os.makedirs(stage, exist_ok=True)
@@ -179,6 +192,7 @@ def main(force=False):
         "outcomeBuckets": OB,
         "generated": time.strftime("%Y-%m-%d"),
         "months": months,
+        "monthsAll": months_all,
         "popYear": popyear,
         "categories": [{"id": k, "name": catname.get(k, k)} for k in catlist],
         "overview": {**allc, "name": "Cambridgeshire & Peterborough", "population": tp, "rate": round(allc["total"] / tp * 1000, 1)},
