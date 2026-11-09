@@ -106,7 +106,7 @@ def main(force=False):
         die(f"too few crime categories: {catlist}")
 
     def blank():
-        return {"total": 0, "byType": {k: 0 for k in catlist}, "monthly": {m: 0 for m in months_all}, "monthly12": {m: 0 for m in months}}
+        return {"total": 0, "byType": {k: 0 for k in catlist}, "monthly": {m: 0 for m in months_all}}
 
     dist = {c: blank() for c in DIST}
     allc = blank()

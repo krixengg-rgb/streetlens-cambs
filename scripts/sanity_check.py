@@ -44,6 +44,15 @@ if not ov.get("total") or ov["total"] < 40000:
     die(f"overview.total too low: {ov.get('total')}")
 if not ov.get("rate") or not (20 < ov["rate"] < 300):
     die(f"overview.rate implausible: {ov.get('rate')}")
+# Optional 24-month YoY fields (present after force refresh)
+ma = summary.get("monthsAll") or []
+if ma:
+    if len(ma) < 12 or len(ma) > 24:
+        die(f"monthsAll length {len(ma)} not in 12..24")
+    if ma[-12:] != months:
+        die("monthsAll tail must equal months")
+    if "yoy" not in ov:
+        die("overview.yoy missing when monthsAll present")
 
 for name, (lo, hi) in RANGES.items():
     obj = load(NEW, name)

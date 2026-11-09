@@ -92,7 +92,39 @@ async function loadNeighbourhood(la,lo,el){try{
 
 function killCharts(){if(typeof m3!=='undefined'&&m3){m3.remove();m3=null}charts.forEach(c=>c.destroy());charts=[]}
 function chartTheme(){Chart.defaults.color=css('--muted');Chart.defaults.borderColor=css('--line');Chart.defaults.font.family='Inter,system-ui,sans-serif'}
+
+function outcomeTrend(el, nearAll){
+  // Build monthly series for key groups from point outcome index p[4]
+  const labels=S.months.map(mname);
+  const charged=S.months.map(()=>0), nosus=S.months.map(()=>0), inv=S.months.map(()=>0), other=S.months.map(()=>0);
+  nearAll.forEach(p=>{const m=p[3],o=p[4]; if(m==null||m<0||m>=S.months.length)return;
+    if(o===0||o===1)charged[m]++; else if(o===2)nosus[m]++; else if(o===4)inv[m]++; else if(o!==6)other[m]++;});
+  chartTheme();
+  charts.push(new Chart(el,{type:'line',data:{labels,datasets:[
+    {label:'Charged / resolved',data:charged,borderColor:'#0f766e',backgroundColor:'#0f766e22',fill:false,tension:.3,pointRadius:2},
+    {label:'No suspect',data:nosus,borderColor:'#94a3b8',backgroundColor:'#94a3b822',fill:false,tension:.3,pointRadius:2},
+    {label:'Under investigation',data:inv,borderColor:'#6366f1',backgroundColor:'#6366f122',fill:false,tension:.3,pointRadius:2},
+    {label:'Other closed',data:other,borderColor:'#f59e0b',backgroundColor:'#f59e0b22',fill:false,tension:.3,pointRadius:2}
+  ]},options:{animation:reduce?false:{duration:400},maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},
+    scales:{y:{beginAtZero:true,stacked:false}}}}));
+  return {charged,nosus,inv,other}}
+function typeTrend(el, nearAll, cats){
+  // Top 4 crime types month-by-month
+  const totals={}; nearAll.forEach(p=>{const id=cats[p[2]]; totals[id]=(totals[id]||0)+1});
+  const top=Object.entries(totals).sort((a,b)=>b[1]-a[1]).slice(0,4).map(e=>e[0]);
+  if(!top.length)return;
+  const cols=['#f59e0b','#0f766e','#e11d48','#6366f1'];
+  const datasets=top.map((id,i)=>{
+    const data=S.months.map(()=>0); nearAll.forEach(p=>{if(cats[p[2]]===id)data[p[3]]++});
+    return {label:cn(id),data,borderColor:cols[i],backgroundColor:cols[i]+'22',fill:false,tension:.3,pointRadius:2}});
+  chartTheme();
+  charts.push(new Chart(el,{type:'line',data:{labels:S.months.map(mname),datasets},
+    options:{animation:reduce?false:{duration:400},maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},scales:{y:{beginAtZero:true}}}}))}
+
 function trend(el,monthly,label='Crimes'){chartTheme();charts.push(new Chart(el,{type:'line',data:{labels:S.months.map(mname),datasets:[{label,data:S.months.map(m=>monthly[m]),borderColor:css('--teal'),backgroundColor:css('--teal')+'22',fill:true,tension:.35,pointRadius:3}]},options:{animation:reduce?false:{duration:500},maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}))}
+function trendAll(el,monthly,months,label='Crimes'){chartTheme();const labs=months.map(mname),data=months.map(m=>monthly[m]||0);charts.push(new Chart(el,{type:'line',data:{labels:labs,datasets:[{label,data,borderColor:css('--teal'),backgroundColor:css('--teal')+'22',fill:true,tension:.35,pointRadius:months.length>12?2:3}]},options:{animation:reduce?false:{duration:500},maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}))}
 function typeTable(byType,total,id){const rows=Object.entries(byType).filter(e=>e[1]).sort((a,b)=>b[1]-a[1]),max=rows[0]?rows[0][1]:1;
  return `<div class="row"><h3>By crime type</h3><span class="ctl">${csvBtn(id,[['Crime type','Count','Share %'],...rows.map(([k,v])=>[cn(k),v,(v/total*100).toFixed(1)])],'this crime-type table')}${tipI('Each row is a police crime category. Share is its percentage of all crimes shown.')}</span></div>
  <table><thead><tr><th>Type</th><th class="n">Count</th><th class="n">Share</th><th style="width:28%"><span class="sr">Bar</span></th></tr></thead><tbody>${rows.map(([k,v])=>`<tr><td>${cn(k)}</td><td class="n">${fmt(v)}</td><td class="n">${(v/total*100).toFixed(1)}%</td><td><div class="bar"><i style="width:${v/max*100}%"></i></div></td></tr>`).join('')}</tbody></table>`}
@@ -128,7 +160,7 @@ function render(){hideTip();killCharts();if(map){map.remove();map=null}
  const pc=q.get('pc'),d=q.get('d');nav(d||'');
  if(q.get('compare')!=null){nav('compare');return compareView(q.get('a'),q.get('b'))}
  if(pc)return dashboard(pc);const dist=S.districts.find(x=>slug(x.name)==d);const title=(dist?dist.name+' — ':'')+'StreetLens — Cambridgeshire area insights';
- setMeta(title,dist?`Crime, outcomes and house prices for ${dist.name}.`:'Crime, outcomes, schools, GPs, transport and house prices for any Cambridgeshire or Peterborough postcode.',location.origin+location.pathname+(d?'?'+q.toString():''));home(dist)}
+ setMeta(title,dist?`${dist.name}: ${dist.rate} crimes per 1,000 residents, solve rate and house prices from open UK data.`:'Crime, outcomes, schools, GPs, transport and house prices for any Cambridgeshire or Peterborough postcode.',location.origin+location.pathname+(d?'?d='+encodeURIComponent(d):''));home(dist)}
 /* ---------- search component ---------- */
 function searchBox(){return `<form class="search" id="sf" role="search" autocomplete="off"><div class="sbox">${ic('search',22)}
  <input id="pc" type="text" inputmode="text" autocapitalize="characters" aria-label="Postcode" placeholder="Enter a postcode, e.g. PE29 3TN" role="combobox" aria-expanded="false" aria-controls="ac" aria-autocomplete="list" data-tip="Type a Cambridgeshire or Peterborough postcode. Suggestions appear as you type.">
@@ -148,7 +180,7 @@ function wireSearch(){const f=$('#sf'),i=$('#pc'),ac=$('#ac');let sel=-1,items=[
  $('#geo').onclick=()=>{if(!navigator.geolocation){$('#serr').textContent='Location is not available on this device.';return}$('#serr').textContent='Finding your location…';
   navigator.geolocation.getCurrentPosition(async p=>{try{const r=await fetch(`https://api.postcodes.io/postcodes?lon=${p.coords.longitude}&lat=${p.coords.latitude}&limit=1`).then(r=>r.json());if(r.result&&r.result[0])go('pc='+encodeURIComponent(r.result[0].postcode));else $('#serr').textContent='No postcode found near you.'}catch{$('#serr').textContent='Could not look up your postcode.'}},()=>{$('#serr').textContent='Location permission was refused. Type a postcode instead.'},{timeout:10000})}}
 /* ---------- home & district ---------- */
-function home(dist){const a=dist||S.overview,isAll=!dist,period=`${mname(S.months[0])} – ${mname(S.months.at(-1))}`,mv=S.months.map(m=>a.monthly[m]),cs=solveOf(S.overview),as=solveOf(a);
+function home(dist){const a=dist||S.overview,isAll=!dist,period=`${mname(S.months[0])} – ${mname(S.months.at(-1))}`,mv=S.months.map(m=>a.monthly[m]),mAll=(S.monthsAll&&S.monthsAll.length>12)?S.monthsAll:S.months,cs=solveOf(S.overview),as=solveOf(a);
  const price=isAll?null:PR.districts[a.code],cp=countyMedian();
  app.innerHTML=`<section class="hero"><div class="in"><span class="eyebrow">${ic('pin',16)} ${isAll?'Cambridgeshire &amp; Peterborough':'District profile'} · ${period}</span>
  <h1>${isAll?'Know your area before you move, rent or report.':esc(a.name)+': crime, outcomes &amp; homes'}</h1>
@@ -159,9 +191,9 @@ function home(dist){const a=dist||S.overview,isAll=!dist,period=`${mname(S.month
  ${kpi('check','Solve rate',as.toFixed(1)+'%',isAll?`${fmt(a.outcomes[0]+a.outcomes[1])} crimes resolved`:badge(as,cs,'county',false),'Share of crimes (excluding anti-social behaviour, which has no outcomes) where someone was charged or summonsed, or got an out-of-court resolution such as a caution. Uses the latest recorded outcome.')}
  ${kpi('home','Median house price',price?'£'+fmt(price[0]):'£'+fmt(cp),price?`${badge(price[0],cp,'county',false).replace(/bad|good/,'neu')} ${fmt(price[1])} sales`:'Weighted across districts','Median price of standard residential sales recorded by HM Land Registry, '+PR.from.slice(0,7)+' to '+PR.to.slice(0,7)+'.')}
  </div>
- ${isAll?`<section class="sec"><div class="sec-h"><div><h2>Districts at a glance</h2><p>Select a district for its full profile.</p></div></div><div class="dcards">${S.districts.map(d=>{const s=solveOf(d);return `<a class="card dcard" href="?${dq(d)}" data-q="${dq(d)}" data-tip="Open the ${d.name} profile."><h3>${d.name} <span aria-hidden="true">→</span></h3>${badge(d.rate,S.overview.rate,'county')}<div class="ms"><div>Per 1,000<b>${d.rate}</b></div><div>Solved<b>${s.toFixed(1)}%</b></div><div>Median<b>£${fmt(Math.round(PR.districts[d.code][0]/1000))}k</b></div></div>${spark(S.months.map(m=>d.monthly[m]))}</a>`}).join('')}</div></section>`:''}
+ ${isAll?`<section class="sec"><div class="sec-h"><div><h2>Districts at a glance</h2><p>Select a district for its full profile.</p></div></div><div class="dcards">${S.districts.map(d=>{const s=solveOf(d);return `<a class="card dcard" href="?${dq(d)}" data-q="${dq(d)}" data-tip="Open the ${d.name} profile."><h3>${d.name} <span aria-hidden="true">→</span></h3>${badge(d.rate,S.overview.rate,'county')}${d.yoy!=null?`<div class="muted" style="font-size:13px;margin:4px 0">YoY ${d.yoy>0?'+':''}${d.yoy}%</div>`:''}<div class="ms"><div>Per 1,000<b>${d.rate}</b></div><div>Solved<b>${s.toFixed(1)}%</b></div><div>Median<b>£${fmt(Math.round(PR.districts[d.code][0]/1000))}k</b></div></div>${spark(S.months.map(m=>d.monthly[m]))}</a>`}).join('')}</div></section>`:''}
  <section class="sec"><div class="sec-h"><div><h2>Crime</h2><p>What is recorded and how it changes month to month.</p></div></div>
- <div class="grid2"><div class="card">${typeTable(a.byType,a.total,'types')}</div><div class="card"><div class="row"><h3>Month by month</h3><span class="ctl">${csvBtn('monthly',[['Month','Crimes'],...S.months.map(m=>[m,a.monthly[m]])],'the monthly counts')}</span></div><div style="height:300px"><canvas id="trend" aria-label="Monthly crime chart"></canvas></div></div></div></section>
+ <div class="grid2"><div class="card">${typeTable(a.byType,a.total,'types')}</div><div class="card"><div class="row"><h3>Month by month${mAll.length>12?' <span class="muted" style="font-weight:600;font-size:13px">(24 months)</span>':''}</h3><span class="ctl">${csvBtn('monthly',[['Month','Crimes'],...mAll.map(m=>[m,a.monthly[m]||0])],'the monthly counts')}${mAll.length>12?tipI('Uses up to 24 months so you can see the previous year alongside the latest 12. The KPI total above is still the latest 12 months only.'):''}</span></div><div style="height:300px"><canvas id="trend" aria-label="Monthly crime chart"></canvas></div></div></div></section>
  <section class="sec"><div class="sec-h"><div><h2>Outcomes &amp; homes</h2><p>How crimes were resolved, and what homes sell for.</p></div></div>
  <div class="grid2"><div class="card">${outTable(a.outcomes,'out')}</div><div class="card"><div class="row"><h3>House prices</h3>${tipI('Median price of standard residential sales recorded by HM Land Registry in the latest 12 months of data.')}</div>
  <table><thead><tr><th>Area</th><th class="n">Median</th><th class="n">Sales</th></tr></thead><tbody>${(isAll?S.districts:[a]).map(d=>`<tr><td>${d.name}</td><td class="n">£${fmt(PR.districts[d.code][0])}</td><td class="n">${fmt(PR.districts[d.code][1])}</td></tr>`).join('')}</tbody></table><p class="muted">${PR.from.slice(0,7)} to ${PR.to.slice(0,7)}</p>
@@ -169,18 +201,18 @@ function home(dist){const a=dist||S.overview,isAll=!dist,period=`${mname(S.month
  ${isAll?`<section class="sec"><div class="card"><div class="row"><h3>Districts compared</h3><span class="ctl">${csvBtn('districts',[['District','Crimes','Population','Per 1,000','Solve rate %','Median price'],...S.districts.map(d=>[d.name,d.total,d.population,d.rate,solveOf(d).toFixed(1),PR.districts[d.code][0]])],'the district comparison')}${tipI('Districts ranked by crimes per 1,000 residents.')}</span></div>
  <div style="overflow-x:auto"><table><thead><tr><th>District</th><th class="n">Crimes</th><th class="n">Residents</th><th class="n">Per 1,000</th><th class="n">Solved</th></tr></thead><tbody>${[...S.districts].sort((x,y)=>y.rate-x.rate).map(d=>`<tr><td><a class="tlink" href="?${dq(d)}" data-q="${dq(d)}" data-tip="Open the ${d.name} profile.">${d.name}</a></td><td class="n">${fmt(d.total)}</td><td class="n">${fmt(d.population)}</td><td class="n">${d.rate}</td><td class="n">${solveOf(d).toFixed(1)}%</td></tr>`).join('')}</tbody></table></div></div></section>`:''}
  </div>`;
- wireSearch();trend($('#trend'),a.monthly);if(isAll){chartTheme();charts.push(new Chart($('#scatter'),{type:'scatter',data:{datasets:[{data:S.districts.map(d=>({x:PR.districts[d.code][0],y:d.rate,n:d.name})),backgroundColor:css('--teal'),pointRadius:8,pointHoverRadius:10}]},options:{animation:reduce?false:undefined,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.n}: £${fmt(c.raw.x)}, ${c.raw.y} per 1,000`}}},scales:{x:{title:{display:true,text:'Median house price (£)'},ticks:{callback:v=>'£'+v/1000+'k'}},y:{beginAtZero:true,title:{display:true,text:'Crimes per 1,000'}}}}}))}}
+ wireSearch();trendAll($('#trend'),a.monthly,mAll);if(isAll){chartTheme();charts.push(new Chart($('#scatter'),{type:'scatter',data:{datasets:[{data:S.districts.map(d=>({x:PR.districts[d.code][0],y:d.rate,n:d.name})),backgroundColor:css('--teal'),pointRadius:8,pointHoverRadius:10}]},options:{animation:reduce?false:undefined,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.n}: £${fmt(c.raw.x)}, ${c.raw.y} per 1,000`}}},scales:{x:{title:{display:true,text:'Median house price (£)'},ticks:{callback:v=>'£'+v/1000+'k'}},y:{beginAtZero:true,title:{display:true,text:'Crimes per 1,000'}}}}}))}}
 function countyMedian(){let n=0,s=0;S.districts.forEach(d=>{const p=PR.districts[d.code];s+=p[0]*p[1];n+=p[1]});return Math.round(s/n/1000)*1000}
 /* ---------- states ---------- */
 function stateView(title,msg,icon='alert'){app.innerHTML=`<div class="wrap"><div class="card state"><div class="big-ico">${ic(icon,30)}</div><h1>${title}</h1><p>${msg}</p>${searchBox()}</div></div>`;
- const q=$('.state .qrow');wireSearch();document.title=title+' — StreetLens'}
+ const q=$('.state .qrow');wireSearch();setMeta(title+' — StreetLens', typeof msg==='string'?stripHtml(msg).slice(0,160):'StreetLens area search.',location.href)}
 function skeleton(pc){app.innerHTML=`<div class="sumbar"><div class="wrap"><h1>${esc(pc)}</h1><div class="schips">${'<div class="sk" style="width:150px;height:44px"></div>'.repeat(5)}</div></div></div>
  <div class="dash" aria-busy="true"><div class="mapcol"><div class="sk" style="height:44px;width:70%"></div><div class="mapbox sk"></div></div><div class="panel"><div class="sk" style="height:56px"></div>${'<div class="sk" style="height:140px;margin-top:16px"></div>'.repeat(3)}</div></div>`}
 /* ---------- postcode dashboard ---------- */
 
 
 function compareView(a,b){
- setMeta('Compare postcodes — StreetLens','Compare crime, outcomes and local services for two Cambridgeshire postcodes.',location.href);
+ {const cu=location.origin+location.pathname+'?compare=1'+(a?'&a='+encodeURIComponent(a):'')+(b?'&b='+encodeURIComponent(b):''); setMeta((a&&b)?`${a} vs ${b} — StreetLens`:'Compare postcodes — StreetLens',(a&&b)?`Side-by-side crime, solve rate and LSOA band for ${a} and ${b}.`:'Compare crime, outcomes and local services for two Cambridgeshire postcodes.',cu);} 
  const box=(id,ph)=>`<div class="ccol"><form class="search cform" data-side="${id}"><div class="sbox">${ic('search',20)}<input name="pc" aria-label="Postcode ${id}" placeholder="${ph}" value="${esc(id==='a'?(a||''):(b||''))}"><button class="btn">Go</button></div></form><div class="cbody" id="c-${id}"><p class="muted">Enter a postcode.</p></div></div>`;
  app.innerHTML=`<div class="wrap"><section class="sec"><div class="sec-h"><div><h1>Compare two postcodes</h1><p>Same radius and period on both sides. Share with <code>?compare=1&a=PE29+3TN&b=CB2+1TN</code>.</p></div>
   <div class="ctl">${radiusBar(getR())}<button class="btn ghost" id="cswap" type="button">Swap</button></div></div>
@@ -220,7 +252,7 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
  const R=r.result,{latitude:la,longitude:lo,postcode}=R,ad=R.admin_district,dist=S.districts.find(d=>d.name==ad);
  if(!dist)return stateView(`${postcode} is outside our area`,`${esc(postcode)} is in ${esc(ad||'an unknown area')}. StreetLens currently covers Cambridgeshire and Peterborough only. Try one of these instead:`,'map');
  const rMi=getR(),degPad=rMi*0.02;
- setMeta(postcode+' — StreetLens',`Crime, outcomes and local services within ${rMi} mile${rMi===1?'':'s'} of ${postcode}.`,location.origin+location.pathname+'?pc='+encodeURIComponent(postcode));
+ setMeta(`${postcode} · ${ad} — StreetLens`,`Crime, outcomes, schools and homes within ${rMi===0.5?'½':rMi} mile${rMi===1?'':'s'} of ${postcode} (${R.admin_ward?R.admin_ward+', ':''}${ad}).`,location.origin+location.pathname+'?pc='+encodeURIComponent(postcode));
  const [nearAll,GP,DE,SC,ST,RA,SS]=await Promise.all([loadPointsNear(la,lo,rMi), ...['gp','dentists','schools','stops','rail','stopsearch'].map(lj)]);
  const cats=S.categories.map(c=>c.id);let tf=getTypeFilter();
  const near=(!tf||tf.size===S.categories.length)?nearAll:nearAll.filter(p=>tf.has(cats[p[2]]));
@@ -256,11 +288,17 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
   ${kpi('people',ad+' rate',dist.rate+' / 1,000',badge(dist.rate,S.overview.rate,'county'),'District crimes per 1,000 residents compared with the county.')}
   ${kpi('map','LSOA rate','…','Loading neighbourhood rate','Crimes per 1,000 in this Lower Super Output Area (approx). Band is relative to Cambridgeshire & Peterborough.')}</div>
   <div class="card">${typeTable(by,nearAll.length||1,'near')}</div>
-  <div class="card"><div class="row"><h3>Month by month</h3><span class="ctl">${csvBtn('nearmonthly',[['Month','Crimes within radius'],...S.months.map(m=>[m,mon[m]])],'the monthly counts')}${tipI('Crimes recorded each month within the chosen radius of this postcode.')}</span></div><div style="height:220px"><canvas id="trend"></canvas></div></div></section>
+  <div class="card"><div class="row"><h3>Month by month</h3><span class="ctl">${csvBtn('nearmonthly',[['Month','Crimes within radius'],...S.months.map(m=>[m,mon[m]])],'the monthly counts')}${tipI('Crimes recorded each month within the chosen radius of this postcode.')}</span></div><div style="height:220px"><canvas id="trend"></canvas></div></div>
+  <div class="card"><div class="row"><h3>Top crime types over time</h3>${tipI('The four most common crime types within the radius, month by month.')}</div><div style="height:220px"><canvas id="typetrend" aria-label="Crime type trends"></canvas></div></div></section>
  <section class="tp" role="tabpanel" id="p-out" aria-labelledby="t-out" hidden>
   <div class="mini">${kpi('check','Solve rate near you',solve==null?'–':solve.toFixed(1)+'%',`${fmt(pos)} of ${fmt(nonAsb)} crimes ${solve==null?'':badge(solve,cs,'county',false)}`,'Share of crimes within the chosen radius (excluding anti-social behaviour, which has no outcomes) where someone was charged or summonsed, or got an out-of-court resolution such as a caution or community resolution. Recent crimes may still be under investigation.')}
-  ${kpi('hand','Stop and searches',fmt(ssN),'Within radius, 12 months','Police stop and searches recorded with a location within the chosen radius.')}</div>
-  <div class="card">${outTable(oc,'nearout')}</div><p class="muted">District solve rate ${ds.toFixed(1)}% · county ${cs.toFixed(1)}%.</p></section>
+  ${kpi('hand','Stop and searches',fmt(ssN),'Within radius, 12 months','Police stop and searches recorded with a location within the chosen radius.')}
+  ${kpi('gavel','Charged / resolved',fmt(oc[0]+oc[1]),((nonAsb?(oc[0]+oc[1])/nonAsb*100:0).toFixed(0))+'% of non-ASB','Charged/summonsed plus out-of-court resolutions within the radius.')}
+  ${kpi('people','No suspect',fmt(oc[2]),((nonAsb?oc[2]/nonAsb*100:0).toFixed(0))+'% of non-ASB','Crimes closed with no suspect identified.')}
+  ${kpi('alert','Still investigating',fmt(oc[4]),((nearAll.length?oc[4]/nearAll.length*100:0).toFixed(0))+'% of all','Latest outcome still under investigation or awaiting update. Newer months tend to look higher.')}</div>
+  <div class="card"><div class="row"><h3>How outcomes move month by month</h3>${tipI('For crimes within the chosen radius. ASB has no outcome and is left out of these lines. “Charged / resolved” combines charged/summonsed and out-of-court resolutions.')}</div>
+  <div style="height:240px"><canvas id="outtrend" aria-label="Monthly outcome trends"></canvas></div></div>
+  <div class="card">${outTable(oc,'nearout')}</div><p class="muted">District solve rate ${ds.toFixed(1)}% · county ${cs.toFixed(1)}%. Recent months often show more cases still under investigation.</p></section>
  <section class="tp" role="tabpanel" id="p-health" aria-labelledby="t-health" hidden>
   <div class="card"><div class="row"><h3>Nearest GP surgeries</h3>${tipI('Active GP practices from the NHS Organisation Data Service, by straight-line distance.')}</div>${nl(gps,'gp',x=>x[3])}</div>
   <div class="card"><div class="row"><h3>Nearest dentists</h3>${tipI('Active dental practices from the NHS Organisation Data Service. Check with the practice whether it takes new NHS patients.')}</div>${nl(des,'dent',x=>x[3])}</div></section>
@@ -310,7 +348,7 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
   </div>
   <p class="muted">Sources: MHCLG IoD 2025 · Environment Agency RoFRS · Ofcom Connected Nations (OGL). <a href="method.html">How to read this</a>.</p>`})();
  const u=new URL(location.href);u.search='?pc='+encodeURIComponent(postcode);history.replaceState(null,'',u);
- trend($('#trend'),mon,'Crimes within radius');
+ trend($('#trend'),mon,'Crimes within radius'); if($('#outtrend'))outcomeTrend($('#outtrend'),nearAll); if($('#typetrend'))typeTrend($('#typetrend'),nearAll,cats);
  // map
  window._ctx={la,lo,postcode,near,nearAll,cats,rMi,GP:within0(GP,la,lo,5),DE:within0(DE,la,lo,5),SC:within0(SC,la,lo,5),ST:within0(ST,la,lo,3),RA:within0(RA,la,lo,15)};
  map=L.map('map',{zoomControl:true}).setView([la,lo],rMi<=0.5?15:rMi<=1?14:13);
