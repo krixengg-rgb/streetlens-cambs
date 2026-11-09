@@ -17,7 +17,7 @@ people:'<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/>
 gavel:'<path d="M14 4l6 6M11 7l6 6M12.5 5.5l-5 5M18.5 11.5l-5 5M3 21l7-7"/>',hand:'<path d="M8 13V5.5a1.5 1.5 0 013 0V11M11 10V4.5a1.5 1.5 0 013 0V11M14 10V5.5a1.5 1.5 0 013 0V14c0 4-3 7-6.5 7S5 19 4 16l-1.5-3.5a1.5 1.5 0 012.6-1.4L8 14"/>',
 expand:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',shrink:'<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>',target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
 sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',moon:'<path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/>',
-alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>',map:'<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',dl:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',share:'<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/>'};
+alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>',flood:'<path d="M12 3c4 6 7 9 7 12a7 7 0 11-14 0c0-3 3-6 7-12z"/>',wifi:'<path d="M5 12.5a9 9 0 0114 0M8.5 16a5 5 0 017 0"/><circle cx="12" cy="20" r="1.2"/>',depr:'<path d="M4 20V10l8-6 8 6v10"/><path d="M10 20v-6h4v6"/>',map:'<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',dl:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',share:'<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/>'};
 const ic=(n,s=20)=>`<svg class="i" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IP[n]}</svg>`;
 const tipI=t=>`<button type="button" class="tip-i" aria-label="Help: ${esc(t)}" data-tip="${esc(t)}"></button>`;
 /* ---------- helpers ---------- */
@@ -50,6 +50,16 @@ function radiusBar(r){return `<div class="rbar" role="group" aria-label="Search 
 function typeFilterBar(by,active){const rows=Object.entries(by).filter(e=>e[1]).sort((a,b)=>b[1]-a[1]);if(!rows.length)return '';
  const all=!active||active.size===S.categories.length;
  return `<div class="tfbar" role="group" aria-label="Crime type filters"><button type="button" class="tchip${all?' on':''}" data-tf="all" aria-pressed="${all}">All types</button>${rows.map(([k,v])=>{const on=!active||active.has(k);return `<button type="button" class="tchip${on&&!all?' on':''}" data-tf="${esc(k)}" aria-pressed="${on}" data-tip="Show or hide ${cn(k)} on the map.">${cn(k)} <b>${fmt(v)}</b></button>`}).join('')}</div>`}
+
+function bandLabel(b){return {H:'High',M:'Medium',L:'Low',V:'Very low'}[b]||'None mapped'}
+function decileLabel(d){if(d==null)return '–';const t=['most deprived 10%','more deprived','more deprived','more deprived','around average','around average','less deprived','less deprived','less deprived','least deprived 10%'];return `Decile ${d} · ${t[d-1]||''}`}
+async function loadAreaExtras(postcode,lsoa){const pc=postcode.replace(/\s+/g,'').toUpperCase(),sec=pc.length>=5?pc.slice(0,-2):pc;
+ const [imd,fl,bb]=await Promise.all(['imd','flood','broadband'].map(n=>lj(n).catch(()=>null)));
+ const im=imd&&imd.lsoa&&imd.lsoa[lsoa];
+ const fb=fl&&fl.pc?fl.pc[pc]:null;
+ let gig=null,sfbb=null; if(bb){const hit=bb.pc&&bb.pc[pc]; const s=hit||(bb.sector&&bb.sector[sec]); if(s){gig=s[0];sfbb=s[1]}}
+ return {im,fb,gig,sfbb,secFallback:!(bb&&bb.pc&&bb.pc[pc])}}
+
 async function loadNeighbourhood(la,lo,el){try{
  const loc=await fetch(`https://data.police.uk/api/locate-neighbourhood?q=${la},${lo}`).then(r=>r.ok?r.json():null);
  if(!loc||!loc.force||!loc.neighbourhood){el.innerHTML='<p class="muted">No neighbourhood team found for this point.</p>';return}
@@ -186,7 +196,10 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
  ${schip('home','Median',sp?'£'+fmt(Math.round(sp[0]/1000))+'k':'–','homes','Median sale price in postcode sector '+sector+'. Open the Homes tab.')}
  ${schip('heart','GP',gps[0].d.toFixed(1)+' mi','health','Nearest GP: '+gps[0][2]+'. Open the Health tab.')}
  ${schip('school','School',scs[0].d.toFixed(1)+' mi','schools','Nearest school: '+scs[0][2]+'. Open the Schools tab.')}
- ${schip('train','Station',rails[0].d.toFixed(1)+' mi','transport','Nearest rail station: '+rails[0][2]+'. Open the Transport tab.')}</div>
+ ${schip('train','Station',rails[0].d.toFixed(1)+' mi','transport','Nearest rail station: '+rails[0][2]+'. Open the Transport tab.')}
+ ${schip('depr','IMD','…','police','Index of Multiple Deprivation for this neighbourhood. Opens the Police / area tab.')}
+ ${schip('flood','Flood','…','police','Rivers and sea flood risk for this postcode.')}
+ ${schip('wifi','BB','…','police','Broadband availability.')}</div>
  <button class="btn ghost" id="share" data-tip="Copy a link to this dashboard so you can share it.">${ic('share',18)}<span class="sl">Share</span></button></div></div>
  <div class="dash"><div class="mapcol"><div class="maptools">${radiusBar(rMi)}${typeFilterBar(by,tf)}</div><div class="layers" role="group" aria-label="Map layers">${Object.entries(LAYERS).map(([k,v])=>`<label class="lt" style="color:${v.c}" data-tip="${esc(v.t)}"><input type="checkbox" data-l="${k}" ${k=='crimes'?'checked':''}><span class="dot" style="background:${v.c}">${ic(v.i,13)}</span><span class="t">${v.n}</span></label>`).join('')}</div>
  <div class="mapbox" id="mapbox"><div id="map" role="region" aria-label="Map of ${postcode} and surroundings"></div>
@@ -216,6 +229,7 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
   ${kpi('chart',ad+' median','£'+fmt(dp[0]),fmt(dp[1])+' sales','District median for comparison.')}</div>
   <p class="muted">Sales from ${PR.from.slice(0,7)} to ${PR.to.slice(0,7)}. Standard residential sales only; excludes repossessions and transfers.</p></section>
  <section class="tp" role="tabpanel" id="p-police" aria-labelledby="t-police" hidden>
+  <div class="card"><div class="row"><h3>Area context</h3>${tipI("Deprivation, flood risk and broadband for this postcode or its LSOA.")}</div><div id="areax"><p class="muted">Loading…</p></div></div>
   <div class="card" id="nbhood"><p class="muted">Loading neighbourhood team…</p></div>
   <p class="muted"><a href="method.html">How to read these figures</a></p></section>
  </div></div>`;
@@ -230,6 +244,18 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
   if(b.dataset.tf==='all'){setTypeFilter(null)}else{const id=b.dataset.tf;if(cur.has(id)&&cur.size>1)cur.delete(id);else cur.add(id);if(cur.size===S.categories.length)setTypeFilter(null);else setTypeFilter(cur)}
   window._keep=snapState();dashboard(postcode)});
  loadNeighbourhood(la,lo,$('#nbhood'));
+ (async()=>{const ex=await loadAreaExtras(postcode,(R.codes&&(R.codes.lsoa21||R.codes.lsoa))||'');
+  const host=$('#areax'); if(!host)return;
+  const chipUp=(lab,val)=>{const b=[...document.querySelectorAll('.schip')].find(x=>x.textContent.includes(lab));if(b){const bb=b.querySelector('b');if(bb)bb.textContent=val}};
+  chipUp('IMD',ex.im?('D'+ex.im.d):'–');chipUp('Flood',ex.fb?bandLabel(ex.fb).split(' ')[0]:'None');chipUp('BB',ex.gig==null?'–':ex.gig+'%');
+  const floodTxt=ex.fb?bandLabel(ex.fb):'None mapped';
+  const bbTxt=ex.gig==null?'–':(ex.gig+'% gigabit')+(ex.secFallback?' (sector)':'');
+  host.innerHTML=`<div class="mini">
+   ${kpi('depr','Deprivation (IMD 2025)',ex.im?('Decile '+ex.im.d):'–',ex.im?decileLabel(ex.im.d):'No LSOA match','Index of Multiple Deprivation 2025 for this LSOA. Decile 1 is the most deprived 10% of neighbourhoods in England.')}
+   ${kpi('flood','Flood risk (rivers & sea)',floodTxt,ex.fb?'Highest band for properties in this postcode':'No property in a mapped rivers/sea flood area for this postcode.','Environment Agency Risk of Flooding from Rivers and Sea. Does not cover surface water.')}
+   ${kpi('wifi','Broadband',bbTxt,ex.sfbb!=null?('SFBB '+ex.sfbb+'% of premises'):'Ofcom residential coverage','Share of residential premises that can get gigabit-capable and superfast (SFBB) broadband. Ofcom Connected Nations.')}
+  </div>
+  <p class="muted">Sources: MHCLG IoD 2025 · Environment Agency RoFRS · Ofcom Connected Nations (OGL). <a href="method.html">How to read this</a>.</p>`})();
  const u=new URL(location.href);u.search='?pc='+encodeURIComponent(postcode);history.replaceState(null,'',u);
  trend($('#trend'),mon,'Crimes within radius');
  // map
