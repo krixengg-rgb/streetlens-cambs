@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>How to read this site — StreetLens</title>
+<meta name="description" content="How StreetLens builds rates, maps and comparisons from open UK data, and what the figures can and cannot tell you.">
+<link rel="canonical" href="https://krixengg-rgb.github.io/streetlens-cambs/public/method.html">
+<meta property="og:title" content="How to read this site — StreetLens">
+<meta property="og:description" content="How StreetLens builds rates, maps and comparisons from open UK data.">
+<meta property="og:image" content="https://krixengg-rgb.github.io/streetlens-cambs/public/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="stylesheet" href="style.css?v=13">
+<script>(()=>{const t=localStorage.getItem('sl-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t})()</script>
+<style>
+.method{max-width:760px;margin:0 auto;padding:28px 20px 64px}
+.method h1{font-size:clamp(28px,4vw,40px);margin:12px 0 8px;letter-spacing:-.02em}
+.method h2{font-size:20px;margin:28px 0 8px}
+.method p,.method li{color:var(--ink2);line-height:1.55}
+.method ul{padding-left:1.2em}
+.method .back{display:inline-flex;gap:6px;align-items:center;margin-bottom:8px}
+</style>
+</head><body>
+<a class="skip" href="#m">Skip to content</a>
+<header class="top"><a class="logo" href="./" aria-label="StreetLens home">
+<svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="9" fill="none" stroke="#5eead4" stroke-width="3.5"/><path d="M21 21l7 7" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/><path d="M9 16l3-4 3 3 3-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<span>Street<b>Lens</b></span></a>
+<a class="chip" href="./" style="margin-left:auto;color:#fff;border-color:#ffffff40">← Overview</a>
+</header>
+<main id="m" class="method" tabindex="-1">
+<a class="back tlink" href="./">← Back to StreetLens</a>
+<span class="eyebrow" style="background:var(--neu-bg);color:var(--ink2);border:1px solid var(--line)">Methodology</span>
+<h1>How to read this site</h1>
+<p>StreetLens is an independent Cambridgeshire &amp; Peterborough prototype. It pulls together free public datasets so you can explore an area before you move, rent or report. It is not affiliated with any police force or public body.</p>
+
+<h2>What the map shows</h2>
+<ul>
+<li>Police anonymise each crime to a nearby street or landmark. A pin is not the exact address of an offence.</li>
+<li>Postcode views count crimes within a straight-line radius you choose (½, 1 or 2 miles). That circle is not a police beat.</li>
+<li>Heat columns count crimes in roughly 200 m squares. Taller and redder means more recorded crimes in that square.</li>
+<li>Only crimes published with a location are included. Some recorded crimes never appear on the map.</li>
+</ul>
+
+<h2>Rates per 1,000 residents</h2>
+<p>We divide recorded crimes by ONS mid-year resident population, then multiply by 1,000. Busy centres look high because visitors, shoppers and workers are not in the resident count. District and LSOA rates use fixed census areas; the radius count around a postcode does not.</p>
+
+<h2>Solve rate</h2>
+<p>Share of non–anti-social-behaviour crimes whose latest outcome is charged/summonsed or an out-of-court resolution. Recent crimes may still be under investigation, which lowers the apparent solve rate.</p>
+
+<h2>Other layers</h2>
+<ul>
+<li><b>Schools, GPs, dentists, bus and rail</b> come from DfE, Ofsted, NHS ODS and NaPTAN. Distances are straight-line.</li>
+<li><b>House prices</b> are medians of HM Land Registry standard residential sales for the latest 12 months of data.</li>
+<li><b>Flood, broadband and deprivation</b> (where shown) use Environment Agency, Ofcom and MHCLG open data for the postcode or its LSOA — not a property survey.</li>
+</ul>
+
+<h2>Lag and updates</h2>
+<p>Police data is usually published about two months after a month ends. StreetLens checks for a new month every Wednesday and refreshes when one appears.</p>
+
+<h2>Licences</h2>
+<p>Most sources are under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>. House prices also carry: Contains HM Land Registry data © Crown copyright and database right 2026.</p>
+</main>
+<footer class="foot"><p><a href="./">StreetLens</a> · independent prototype</p></footer>
+</body></html>

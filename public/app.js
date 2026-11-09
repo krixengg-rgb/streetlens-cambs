@@ -34,6 +34,38 @@ function hav(a,b,c,d){const R=3958.8,r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math
 const nearest=(arr,la,lo,n)=>arr.map(p=>Object.assign([...p],{d:hav(la,lo,p[0],p[1])})).sort((a,b)=>a.d-b.d).slice(0,n);
 const solveOf=a=>{const t=a.outcomes.reduce((x,y)=>x+y,0)-a.outcomes[6];return t?(a.outcomes[0]+a.outcomes[1])/t*100:0};
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* ---------- Stage A: radius + crime-type filters + meta ---------- */
+const RADII=[0.5,1,2];
+function getR(){const v=parseFloat(sessionStorage.getItem('sl-r')||'1');return RADII.includes(v)?v:1}
+function setR(r){sessionStorage.setItem('sl-r',String(r))}
+function getTypeFilter(){try{const t=JSON.parse(sessionStorage.getItem('sl-tf')||'null');return Array.isArray(t)?new Set(t):null}catch{return null}}
+function setTypeFilter(set){if(!set||set.size===S.categories.length)sessionStorage.removeItem('sl-tf');else sessionStorage.setItem('sl-tf',JSON.stringify([...set]))}
+function setMeta(title,desc,url){document.title=title;const set=(sel,attr,val)=>{let el=document.querySelector(sel);if(el)el.setAttribute(attr,val)};
+ set('meta[name=description]','content',desc);set('meta[property="og:title"]','content',title);set('meta[property="og:description"]','content',desc);
+ set('meta[property="og:url"]','content',url);set('meta[name="twitter:title"]','content',title);set('meta[name="twitter:description"]','content',desc);
+ let c=document.querySelector('link[rel=canonical]');if(c)c.href=url}
+function stripHtml(s){return String(s||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}
+function radiusBar(r){return `<div class="rbar" role="group" aria-label="Search radius">${RADII.map(x=>`<button type="button" class="rbtn${x===r?' on':''}" data-r="${x}" aria-pressed="${x===r}" data-tip="Count crimes and draw the search circle at ${x} mile${x===1?'':'s'}.">${x===0.5?'½':x} mi</button>`).join('')}</div>`}
+function typeFilterBar(by,active){const rows=Object.entries(by).filter(e=>e[1]).sort((a,b)=>b[1]-a[1]);if(!rows.length)return '';
+ const all=!active||active.size===S.categories.length;
+ return `<div class="tfbar" role="group" aria-label="Crime type filters"><button type="button" class="tchip${all?' on':''}" data-tf="all" aria-pressed="${all}">All types</button>${rows.map(([k,v])=>{const on=!active||active.has(k);return `<button type="button" class="tchip${on&&!all?' on':''}" data-tf="${esc(k)}" aria-pressed="${on}" data-tip="Show or hide ${cn(k)} on the map.">${cn(k)} <b>${fmt(v)}</b></button>`}).join('')}</div>`}
+async function loadNeighbourhood(la,lo,el){try{
+ const loc=await fetch(`https://data.police.uk/api/locate-neighbourhood?q=${la},${lo}`).then(r=>r.ok?r.json():null);
+ if(!loc||!loc.force||!loc.neighbourhood){el.innerHTML='<p class="muted">No neighbourhood team found for this point.</p>';return}
+ const [info,pri]=await Promise.all([
+  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}`).then(r=>r.ok?r.json():null),
+  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/priorities`).then(r=>r.ok?r.json():[])
+ ]);
+ const name=(info&&info.name)||loc.neighbourhood.replace(/_/g,' ');
+ const url=`https://www.police.uk/pu/your-area/${loc.force}/${loc.neighbourhood.toLowerCase().replace(/_/g,'-')}/`;
+ const issue=pri&&pri[0]?stripHtml(pri[0].issue).slice(0,220):'';
+ el.innerHTML=`<div class="row"><h3>Local policing</h3>${tipI('Neighbourhood team from data.police.uk for this location. Priorities are set by the force and change over time.')}</div>
+ <p><b>${esc(name)}</b> · ${esc(loc.force.replace(/-/g,' '))}</p>
+ ${issue?`<p class="muted">${esc(issue)}${issue.length>=220?'…':''}</p>`:''}
+ <p><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">Open on police.uk</a></p>`}
+ catch{el.innerHTML='<p class="muted">Could not load neighbourhood details right now.</p>'}}
+
 function killCharts(){if(typeof m3!=='undefined'&&m3){m3.remove();m3=null}charts.forEach(c=>c.destroy());charts=[]}
 function chartTheme(){Chart.defaults.color=css('--muted');Chart.defaults.borderColor=css('--line');Chart.defaults.font.family='Inter,system-ui,sans-serif'}
 function trend(el,monthly,label='Crimes'){chartTheme();charts.push(new Chart(el,{type:'line',data:{labels:S.months.map(mname),datasets:[{label,data:S.months.map(m=>monthly[m]),borderColor:css('--teal'),backgroundColor:css('--teal')+'22',fill:true,tension:.35,pointRadius:3}]},options:{animation:reduce?false:{duration:500},maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}))}
@@ -59,18 +91,20 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')hideTip()});addEvent
 /* ---------- theme ---------- */
 function setThemeBtn(){const d=document.documentElement.dataset.theme==='dark';$('#theme').innerHTML=ic(d?'sun':'moon',22);$('#theme').setAttribute('aria-pressed',d)}
 $('#theme').onclick=()=>{const d=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=d;localStorage.setItem('sl-theme',d);setThemeBtn();window._keep=snapState();render()};
-function snapState(){if(!$('#mapbox')||!map)return null;const d=is3d()&&m3;const t=document.querySelector('.tab[aria-selected=true]');return {L:[...document.querySelectorAll('.layers input:checked')].map(i=>i.dataset.l),d3:is3d(),cam:d?{center:m3.getCenter(),zoom:m3.getZoom(),pitch:m3.getPitch(),bearing:m3.getBearing()}:null,ll:{c:map.getCenter(),z:map.getZoom()},tab:t&&t.id,y:scrollY}}
+function snapState(){if(!$('#mapbox')||!map)return null;const d=is3d()&&m3;const t=document.querySelector('.tab[aria-selected=true]');return {L:[...document.querySelectorAll('.layers input:checked')].map(i=>i.dataset.l),d3:is3d(),cam:d?{center:m3.getCenter(),zoom:m3.getZoom(),pitch:m3.getPitch(),bearing:m3.getBearing()}:null,ll:{c:map.getCenter(),z:map.getZoom()},tab:t&&t.id,y:scrollY,r:getR(),tf:getTypeFilter()?[...getTypeFilter()]:null}}
 /* ---------- routing: ?pc=, ?d=, legacy #/ ---------- */
 function go(q,push=true){const u=new URL(location.href);u.hash='';u.search=q?'?'+q:'';if(push)history.pushState(null,'',u);render();app.focus({preventScroll:true});scrollTo({top:0,behavior:reduce?'auto':'smooth'})}
 addEventListener('popstate',render);
 document.addEventListener('click',e=>{const a=e.target.closest('a[data-q],a[data-nav]');if(!a||e.metaKey||e.ctrlKey)return;e.preventDefault();go(a.dataset.q||'')});
 const dq=d=>'d='+slug(d.name);
-function nav(cur){$('#nav').innerHTML=`<a href="./" data-nav="home" ${!cur?'aria-current="page"':''} data-tip="County-wide summary and postcode search.">Overview</a>`+S.districts.map(d=>`<a href="?${dq(d)}" data-q="${dq(d)}" ${cur==slug(d.name)?'aria-current="page"':''} data-tip="Crime, outcomes and house prices for ${d.name}.">${d.name}</a>`).join('')}
+function nav(cur){$('#nav').innerHTML=`<a href="./" data-nav="home" ${!cur||cur=='home'?'aria-current="page"':''} data-tip="County-wide summary and postcode search.">Overview</a>`+S.districts.map(d=>`<a href="?${dq(d)}" data-q="${dq(d)}" ${cur==slug(d.name)?'aria-current="page"':''} data-tip="Crime, outcomes and house prices for ${d.name}.">${d.name}</a>`).join('')+`<a href="?compare=1" data-q="compare=1" ${cur=='compare'?'aria-current="page"':''} data-tip="Compare two postcodes side by side.">Compare</a><a href="method.html" data-tip="How rates, maps and outcomes are calculated.">Method</a>`}
 function render(){hideTip();killCharts();if(map){map.remove();map=null}
  const q=new URLSearchParams(location.search),h=decodeURIComponent(location.hash.slice(2));
  if(h){const u=new URL(location.href);u.hash='';if(h.startsWith('postcode/'))u.search='?pc='+h.slice(9);else if(h)u.search='?d='+h;history.replaceState(null,'',u);return render()}
  const pc=q.get('pc'),d=q.get('d');nav(d||'');
- if(pc)return dashboard(pc);const dist=S.districts.find(x=>slug(x.name)==d);document.title=(dist?dist.name+' — ':'')+'StreetLens — Cambridgeshire area insights';home(dist)}
+ if(q.get('compare')!=null){nav('compare');return compareView(q.get('a'),q.get('b'))}
+ if(pc)return dashboard(pc);const dist=S.districts.find(x=>slug(x.name)==d);const title=(dist?dist.name+' — ':'')+'StreetLens — Cambridgeshire area insights';
+ setMeta(title,dist?`Crime, outcomes and house prices for ${dist.name}.`:'Crime, outcomes, schools, GPs, transport and house prices for any Cambridgeshire or Peterborough postcode.',location.origin+location.pathname+(d?'?'+q.toString():''));home(dist)}
 /* ---------- search component ---------- */
 function searchBox(){return `<form class="search" id="sf" role="search" autocomplete="off"><div class="sbox">${ic('search',22)}
  <input id="pc" type="text" inputmode="text" autocapitalize="characters" aria-label="Postcode" placeholder="Enter a postcode, e.g. PE29 3TN" role="combobox" aria-expanded="false" aria-controls="ac" aria-autocomplete="list" data-tip="Type a Cambridgeshire or Peterborough postcode. Suggestions appear as you type.">
@@ -119,19 +153,26 @@ function stateView(title,msg,icon='alert'){app.innerHTML=`<div class="wrap"><div
 function skeleton(pc){app.innerHTML=`<div class="sumbar"><div class="wrap"><h1>${esc(pc)}</h1><div class="schips">${'<div class="sk" style="width:150px;height:44px"></div>'.repeat(5)}</div></div></div>
  <div class="dash" aria-busy="true"><div class="mapcol"><div class="sk" style="height:44px;width:70%"></div><div class="mapbox sk"></div></div><div class="panel"><div class="sk" style="height:56px"></div>${'<div class="sk" style="height:140px;margin-top:16px"></div>'.repeat(3)}</div></div>`}
 /* ---------- postcode dashboard ---------- */
-const LAYERS={crimes:{n:'Crimes',c:'#f59e0b',i:'shield',t:'Crime points within 1 mile of the postcode, clustered. Colour: amber.'},gp:{n:'GPs',c:'#e11d48',i:'heart',t:'GP surgeries within 5 miles (NHS ODS). Colour: red.'},dent:{n:'Dentists',c:'#7c3aed',i:'tooth',t:'Dental practices within 5 miles (NHS ODS). Colour: purple.'},sch:{n:'Schools',c:'#16a34a',i:'school',t:'Open schools within 5 miles with phase and Ofsted grade (DfE GIAS, Ofsted). Colour: green.'},bus:{n:'Bus stops',c:'#2563eb',i:'bus',t:'Bus stops within 3 miles (NaPTAN), clustered. Colour: blue.'},rail:{n:'Rail',c:'#334155',i:'train',t:'Railway stations (NaPTAN). Colour: slate.'},heat:{n:'Heat columns',c:'#dc2626',i:'chart',t:'3D only: crimes counted in 200m squares within 1 mile and drawn as columns. Taller and redder means more crimes. Turning this on switches to 3D.'}};
+
+/* compare stub — replaced in Stage C */
+function compareView(a,b){app.innerHTML=`<div class="wrap"><div class="card state"><h1>Compare two postcodes</h1><p>Side-by-side comparison is landing in the next update. Search one postcode for now.</p>${searchBox()}</div></div>`;wireSearch();setMeta('Compare — StreetLens','Compare two Cambridgeshire postcodes.',location.href)}
+
+const LAYERS={crimes:{n:'Crimes',c:'#f59e0b',i:'shield',t:'Crime points within the chosen radius, clustered. Colour: amber.'},gp:{n:'GPs',c:'#e11d48',i:'heart',t:'GP surgeries within 5 miles (NHS ODS). Colour: red.'},dent:{n:'Dentists',c:'#7c3aed',i:'tooth',t:'Dental practices within 5 miles (NHS ODS). Colour: purple.'},sch:{n:'Schools',c:'#16a34a',i:'school',t:'Open schools within 5 miles with phase and Ofsted grade (DfE GIAS, Ofsted). Colour: green.'},bus:{n:'Bus stops',c:'#2563eb',i:'bus',t:'Bus stops within 3 miles (NaPTAN), clustered. Colour: blue.'},rail:{n:'Rail',c:'#334155',i:'train',t:'Railway stations (NaPTAN). Colour: slate.'},heat:{n:'Heat columns',c:'#dc2626',i:'chart',t:'3D only: crimes counted in 200m squares within the chosen radius and drawn as columns. Taller and redder means more crimes. Turning this on switches to 3D.'}};
 async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();skeleton(raw.toUpperCase());
  let r;try{r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pcq)).then(r=>r.json())}catch{return stateView('Could not reach the postcode service','Check your connection and try again.')}
  if(!r||r.status!=200){let sug=[];try{sug=(await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pcq.slice(0,-1))+'/autocomplete?limit=4').then(x=>x.json())).result||[]}catch{}
   return stateView(`We couldn't find “${esc(raw)}”`,'Check the postcode is complete and spelled correctly, for example PE29 3TN.'+(sug.length?' Did you mean: '+sug.map(s=>`<a href="?pc=${encodeURIComponent(s)}" data-q="pc=${encodeURIComponent(s)}">${s}</a>`).join(', ')+'?':''),'search')}
  const R=r.result,{latitude:la,longitude:lo,postcode}=R,ad=R.admin_district,dist=S.districts.find(d=>d.name==ad);
  if(!dist)return stateView(`${postcode} is outside our area`,`${esc(postcode)} is in ${esc(ad||'an unknown area')}. StreetLens currently covers Cambridgeshire and Peterborough only. Try one of these instead:`,'map');
- document.title=postcode+' — StreetLens';
+ const rMi=getR(),degPad=rMi*0.02;
+ setMeta(postcode+' — StreetLens',`Crime, outcomes and local services within ${rMi} mile${rMi===1?'':'s'} of ${postcode}.`,location.origin+location.pathname+'?pc='+encodeURIComponent(postcode));
  const [PP,GP,DE,SC,ST,RA,SS]=await Promise.all(['points','gp','dentists','schools','stops','rail','stopsearch'].map(lj));
- const near=PP.filter(p=>Math.abs(p[0]-la)<.02&&Math.abs(p[1]-lo)<.03&&hav(la,lo,p[0],p[1])<=1);
- const cats=S.categories.map(c=>c.id),by={},mon={},oc=[0,0,0,0,0,0,0];S.months.forEach(m=>mon[m]=0);near.forEach(p=>{by[cats[p[2]]]=(by[cats[p[2]]]||0)+1;mon[S.months[p[3]]]++;oc[p[4]]++});
- const nonAsb=near.length-oc[6],pos=oc[0]+oc[1],solve=nonAsb?pos/nonAsb*100:null,cs=solveOf(S.overview),ds=solveOf(dist);
- const ssN=SS.filter(p=>hav(la,lo,p[0],p[1])<=1).length,sector=postcode.slice(0,-2).trim(),sp=PR.sectors[sector],dp=PR.districts[dist.code];
+ const nearAll=PP.filter(p=>Math.abs(p[0]-la)<degPad&&Math.abs(p[1]-lo)<degPad*1.5&&hav(la,lo,p[0],p[1])<=rMi);
+ const cats=S.categories.map(c=>c.id);let tf=getTypeFilter();
+ const near=(!tf||tf.size===S.categories.length)?nearAll:nearAll.filter(p=>tf.has(cats[p[2]]));
+ const by={},mon={},oc=[0,0,0,0,0,0,0];S.months.forEach(m=>mon[m]=0);nearAll.forEach(p=>{by[cats[p[2]]]=(by[cats[p[2]]]||0)+1;mon[S.months[p[3]]]++;oc[p[4]]++});
+ const nonAsb=nearAll.length-oc[6],pos=oc[0]+oc[1],solve=nonAsb?pos/nonAsb*100:null,cs=solveOf(S.overview),ds=solveOf(dist);
+ const ssN=SS.filter(p=>hav(la,lo,p[0],p[1])<=rMi).length,sector=postcode.slice(0,-2).trim(),sp=PR.sectors[sector],dp=PR.districts[dist.code];
  const st500=ST.filter(p=>Math.abs(p[0]-la)<.01&&hav(la,lo,p[0],p[1])<=0.3107).length,rails=nearest(RA,la,lo,3);
  const gps=nearest(GP,la,lo,3),des=nearest(DE,la,lo,3),scs=nearest(SC,la,lo,5),busN=nearest(ST,la,lo,3);
  const busiest=Object.entries(by).sort((a,b)=>b[1]-a[1])[0],mv=S.months.map(m=>mon[m]);
@@ -139,27 +180,27 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
  const nl=(arr,key,meta)=>`<ol class="near">${arr.map((x,k)=>`<li><span class="ico" style="background:${LAYERS[key].c}">${ic(LAYERS[key].i,18)}</span><b>${esc(x[2])}</b><span class="d">${x.d.toFixed(1)} mi</span><span class="m">${meta(x)}</span></li>`).join('')}</ol>`;
  const schip=(icon,lab,val,tab,t)=>`<button class="schip" data-go="${tab}" data-tip="${esc(t)}">${ic(icon,18)}<span>${lab}</span><b>${val}</b></button>`;
  app.innerHTML=`<div class="sumbar"><div class="wrap"><div><h1>${postcode}</h1><div class="where">${esc(R.admin_ward||'')}${R.admin_ward?', ':''}${esc(ad)}</div></div>
- <div class="schips">${schip('shield','Crimes 1 mi',fmt(near.length),'crime','Crimes recorded within 1 mile in the last 12 months. Open the Crime tab.')}
+ <div class="schips">${schip('shield','Crimes '+ (rMi===0.5?'½':rMi) +' mi',fmt(nearAll.length),'crime','Crimes recorded within '+rMi+' mile(s) in the last 12 months. Open the Crime tab.')}
  ${schip('people','District rate',dist.rate+' <small>vs '+S.overview.rate+'</small>','crime',`${ad}: ${dist.rate} crimes per 1,000 residents against a county figure of ${S.overview.rate}.`)}
- ${schip('check','Solved',solve==null?'–':solve.toFixed(0)+'%','out','Solve rate for crimes within 1 mile. Open the Outcomes tab.')}
+ ${schip('check','Solved',solve==null?'–':solve.toFixed(0)+'%','out','Solve rate for crimes within '+rMi+' mile(s). Open the Outcomes tab.')}
  ${schip('home','Median',sp?'£'+fmt(Math.round(sp[0]/1000))+'k':'–','homes','Median sale price in postcode sector '+sector+'. Open the Homes tab.')}
  ${schip('heart','GP',gps[0].d.toFixed(1)+' mi','health','Nearest GP: '+gps[0][2]+'. Open the Health tab.')}
  ${schip('school','School',scs[0].d.toFixed(1)+' mi','schools','Nearest school: '+scs[0][2]+'. Open the Schools tab.')}
  ${schip('train','Station',rails[0].d.toFixed(1)+' mi','transport','Nearest rail station: '+rails[0][2]+'. Open the Transport tab.')}</div>
  <button class="btn ghost" id="share" data-tip="Copy a link to this dashboard so you can share it.">${ic('share',18)}<span class="sl">Share</span></button></div></div>
- <div class="dash"><div class="mapcol"><div class="layers" role="group" aria-label="Map layers">${Object.entries(LAYERS).map(([k,v])=>`<label class="lt" style="color:${v.c}" data-tip="${esc(v.t)}"><input type="checkbox" data-l="${k}" ${k=='crimes'?'checked':''}><span class="dot" style="background:${v.c}">${ic(v.i,13)}</span><span class="t">${v.n}</span></label>`).join('')}</div>
+ <div class="dash"><div class="mapcol"><div class="maptools">${radiusBar(rMi)}${typeFilterBar(by,tf)}</div><div class="layers" role="group" aria-label="Map layers">${Object.entries(LAYERS).map(([k,v])=>`<label class="lt" style="color:${v.c}" data-tip="${esc(v.t)}"><input type="checkbox" data-l="${k}" ${k=='crimes'?'checked':''}><span class="dot" style="background:${v.c}">${ic(v.i,13)}</span><span class="t">${v.n}</span></label>`).join('')}</div>
  <div class="mapbox" id="mapbox"><div id="map" role="region" aria-label="Map of ${postcode} and surroundings"></div>
- <div class="mapctl"><button id="fs" aria-label="Full screen map" data-tip="Expand the map to full screen. Press Esc or tap again to exit.">${ic('expand')}</button><button id="mode3d" aria-pressed="false" aria-label="Switch to 3D map" data-tip="Switch between the flat 2D map and a tilted 3D view with extruded buildings. In 3D, drag with two fingers or right-click to tilt and rotate.">3D</button><button id="recentre" aria-label="Recentre map" data-tip="Return the map to ${postcode} and the 1-mile search area.">${ic('target')}</button></div>
- <div class="legend" aria-label="Map legend"><span><i style="background:#0f766e;border-radius:0;height:3px;width:14px;box-shadow:none;border:0"></i>1-mile area</span>${Object.values(LAYERS).map(v=>`<span><i style="background:${v.c}"></i>${v.n}</span>`).join('')}</div></div></div>
- <div class="panel"><div class="tabs" role="tablist" aria-label="Area topics">${[['crime','Crime','shield'],['out','Outcomes','gavel'],['health','Health','heart'],['schools','Schools','school'],['transport','Transport','bus'],['homes','Homes','home']].map(([k,n,i],x)=>`<button class="tab" role="tab" id="t-${k}" aria-controls="p-${k}" aria-selected="${!x}" tabindex="${x?-1:0}">${ic(i,17)}${n}</button>`).join('')}</div>
+ <div class="mapctl"><button id="fs" aria-label="Full screen map" data-tip="Expand the map to full screen. Press Esc or tap again to exit.">${ic('expand')}</button><button id="mode3d" aria-pressed="false" aria-label="Switch to 3D map" data-tip="Switch between the flat 2D map and a tilted 3D view with extruded buildings. In 3D, drag with two fingers or right-click to tilt and rotate.">3D</button><button id="recentre" aria-label="Recentre map" data-tip="Return the map to ${postcode} and the search area.">${ic('target')}</button></div>
+ <div class="legend" aria-label="Map legend"><span><i style="background:#0f766e;border-radius:0;height:3px;width:14px;box-shadow:none;border:0"></i>${rMi===0.5?'½':rMi} mi area</span>${Object.values(LAYERS).map(v=>`<span><i style="background:${v.c}"></i>${v.n}</span>`).join('')}</div></div></div>
+ <div class="panel"><div class="tabs" role="tablist" aria-label="Area topics">${[['crime','Crime','shield'],['out','Outcomes','gavel'],['health','Health','heart'],['schools','Schools','school'],['transport','Transport','bus'],['homes','Homes','home'],['police','Police','people']].map(([k,n,i],x)=>`<button class="tab" role="tab" id="t-${k}" aria-controls="p-${k}" aria-selected="${!x}" tabindex="${x?-1:0}">${ic(i,17)}${n}</button>`).join('')}</div>
  <section class="tp" role="tabpanel" id="p-crime" aria-labelledby="t-crime">
-  <div class="mini">${kpi('shield','Within 1 mile',fmt(near.length),busiest?'Most common: '+cn(busiest[0]):'','Crimes recorded within 1 mile of '+postcode+' over 12 months.',spark(mv,'#f59e0b'))}
+  <div class="mini">${kpi('shield','Within '+(rMi===0.5?'½':rMi)+' mi',fmt(nearAll.length),busiest?'Most common: '+cn(busiest[0]):'','Crimes recorded within '+rMi+' mile(s) of '+postcode+' over 12 months.',spark(mv,'#f59e0b'))}
   ${kpi('people',ad+' rate',dist.rate+' / 1,000',badge(dist.rate,S.overview.rate,'county'),'District crimes per 1,000 residents compared with the county.')}</div>
-  <div class="card">${typeTable(by,near.length||1,'near')}</div>
-  <div class="card"><div class="row"><h3>Month by month</h3><span class="ctl">${csvBtn('nearmonthly',[['Month','Crimes within 1 mile'],...S.months.map(m=>[m,mon[m]])],'the monthly counts')}${tipI('Crimes recorded each month within 1 mile of this postcode.')}</span></div><div style="height:220px"><canvas id="trend"></canvas></div></div></section>
+  <div class="card">${typeTable(by,nearAll.length||1,'near')}</div>
+  <div class="card"><div class="row"><h3>Month by month</h3><span class="ctl">${csvBtn('nearmonthly',[['Month','Crimes within radius'],...S.months.map(m=>[m,mon[m]])],'the monthly counts')}${tipI('Crimes recorded each month within the chosen radius of this postcode.')}</span></div><div style="height:220px"><canvas id="trend"></canvas></div></div></section>
  <section class="tp" role="tabpanel" id="p-out" aria-labelledby="t-out" hidden>
-  <div class="mini">${kpi('check','Solve rate near you',solve==null?'–':solve.toFixed(1)+'%',`${fmt(pos)} of ${fmt(nonAsb)} crimes ${solve==null?'':badge(solve,cs,'county',false)}`,'Share of crimes within 1 mile (excluding anti-social behaviour, which has no outcomes) where someone was charged or summonsed, or got an out-of-court resolution such as a caution or community resolution. Recent crimes may still be under investigation.')}
-  ${kpi('hand','Stop and searches',fmt(ssN),'Within 1 mile, 12 months','Police stop and searches recorded with a location within 1 mile.')}</div>
+  <div class="mini">${kpi('check','Solve rate near you',solve==null?'–':solve.toFixed(1)+'%',`${fmt(pos)} of ${fmt(nonAsb)} crimes ${solve==null?'':badge(solve,cs,'county',false)}`,'Share of crimes within the chosen radius (excluding anti-social behaviour, which has no outcomes) where someone was charged or summonsed, or got an out-of-court resolution such as a caution or community resolution. Recent crimes may still be under investigation.')}
+  ${kpi('hand','Stop and searches',fmt(ssN),'Within radius, 12 months','Police stop and searches recorded with a location within the chosen radius.')}</div>
   <div class="card">${outTable(oc,'nearout')}</div><p class="muted">District solve rate ${ds.toFixed(1)}% · county ${cs.toFixed(1)}%.</p></section>
  <section class="tp" role="tabpanel" id="p-health" aria-labelledby="t-health" hidden>
   <div class="card"><div class="row"><h3>Nearest GP surgeries</h3>${tipI('Active GP practices from the NHS Organisation Data Service, by straight-line distance.')}</div>${nl(gps,'gp',x=>x[3])}</div>
@@ -174,6 +215,9 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
   <div class="mini">${kpi('home','Median price, '+sector,sp?'£'+fmt(sp[0]):'–',sp?`${fmt(sp[1])} sales ${badge(sp[0],dp[0],ad,false).replace(/bad|good/,'neu')}`:'No sales recorded','Median price of standard residential sales in this postcode sector, HM Land Registry Price Paid Data.')}
   ${kpi('chart',ad+' median','£'+fmt(dp[0]),fmt(dp[1])+' sales','District median for comparison.')}</div>
   <p class="muted">Sales from ${PR.from.slice(0,7)} to ${PR.to.slice(0,7)}. Standard residential sales only; excludes repossessions and transfers.</p></section>
+ <section class="tp" role="tabpanel" id="p-police" aria-labelledby="t-police" hidden>
+  <div class="card" id="nbhood"><p class="muted">Loading neighbourhood team…</p></div>
+  <p class="muted"><a href="method.html">How to read these figures</a></p></section>
  </div></div>`;
  // tabs
  const tabs=[...document.querySelectorAll('.tab')];const sel=t=>{tabs.forEach(b=>{const on=b===t;b.setAttribute('aria-selected',on);b.tabIndex=on?0:-1;$('#'+b.getAttribute('aria-controls')).hidden=!on});
@@ -181,13 +225,18 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
  tabs.forEach((b,i)=>{b.onclick=()=>sel(b);b.onkeydown=e=>{const k={ArrowRight:1,ArrowLeft:-1}[e.key];if(k){const n=tabs[(i+k+tabs.length)%tabs.length];sel(n);n.focus();e.preventDefault()}}});
  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{const t=$('#t-'+b.dataset.go);sel(t);t.scrollIntoView({block:'nearest',behavior:reduce?'auto':'smooth'});t.focus({preventScroll:true})});
  $('#share').onclick=async()=>{const url=location.origin+location.pathname+'?pc='+encodeURIComponent(postcode);try{if(navigator.share&&touch)await navigator.share({title:'StreetLens: '+postcode,url});else{await navigator.clipboard.writeText(url);$('#share').innerHTML=ic('check',18)+'<span class="sl">Copied</span>'}}catch{}};
+ document.querySelectorAll('.rbtn').forEach(b=>b.onclick=()=>{setR(parseFloat(b.dataset.r));window._keep=snapState();dashboard(postcode)});
+ document.querySelectorAll('.tchip').forEach(b=>b.onclick=()=>{let cur=getTypeFilter()||new Set(S.categories.map(c=>c.id));
+  if(b.dataset.tf==='all'){setTypeFilter(null)}else{const id=b.dataset.tf;if(cur.has(id)&&cur.size>1)cur.delete(id);else cur.add(id);if(cur.size===S.categories.length)setTypeFilter(null);else setTypeFilter(cur)}
+  window._keep=snapState();dashboard(postcode)});
+ loadNeighbourhood(la,lo,$('#nbhood'));
  const u=new URL(location.href);u.search='?pc='+encodeURIComponent(postcode);history.replaceState(null,'',u);
- trend($('#trend'),mon,'Crimes within 1 mile');
+ trend($('#trend'),mon,'Crimes within radius');
  // map
- window._ctx={la,lo,postcode,near,cats,GP:within0(GP,la,lo,5),DE:within0(DE,la,lo,5),SC:within0(SC,la,lo,5),ST:within0(ST,la,lo,3),RA:within0(RA,la,lo,15)};
- map=L.map('map',{zoomControl:true}).setView([la,lo],14);
+ window._ctx={la,lo,postcode,near,nearAll,cats,rMi,GP:within0(GP,la,lo,5),DE:within0(DE,la,lo,5),SC:within0(SC,la,lo,5),ST:within0(ST,la,lo,3),RA:within0(RA,la,lo,15)};
+ map=L.map('map',{zoomControl:true}).setView([la,lo],rMi<=0.5?15:rMi<=1?14:13);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
- const area=L.circle([la,lo],{radius:1609,color:'#0f766e',weight:2,fillOpacity:.04}).addTo(map);
+ const area=L.circle([la,lo],{radius:rMi*1609.34,color:'#0f766e',weight:2,fillOpacity:.04}).addTo(map);
  L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:34px;height:34px;background:#14213d">${ic('pin',18)}</div>`,iconSize:[34,34],iconAnchor:[17,17]}),zIndexOffset:1000,keyboard:true,title:postcode}).addTo(map).bindPopup('<b>'+postcode+'</b>');
  const clus=c=>L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50,iconCreateFunction:g=>{const n=g.getChildCount(),s=n<10?30:n<100?38:46;return L.divIcon({className:'',html:`<div class="cl" style="width:${s}px;height:${s}px;background:${c}">${n}</div>`,iconSize:[s,s]})}});
  const pinI=(k,s=28)=>L.divIcon({className:'',html:`<div class="pin" style="width:${s}px;height:${s}px;background:${LAYERS[k].c}">${ic(LAYERS[k].i,s*.55|0)}</div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});
@@ -246,7 +295,7 @@ async function set3d(on){const b=$('#mode3d'),box=$('#mapbox');if(!b)return;b.se
  m3.on('load',()=>{const M=m3;if(!M)return;if(M.getLayer('building-3d'))M.removeLayer('building-3d');
   const lbl=M.getStyle().layers.find(l=>l.type==='symbol'&&l.layout&&l.layout['text-field']);
   M.addLayer({id:'sl-bld',type:'fill-extrusion',source:'openmaptiles','source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':dark?'#2a3a58':'#c9bfae','fill-extrusion-height':['coalesce',['get','render_height'],6],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.85}},lbl&&lbl.id);
-  M.addSource('sl-area',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:circlePoly(c.la,c.lo,1)}}});
+  M.addSource('sl-area',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:circlePoly(c.la,c.lo,c.rMi||1)}}});
   M.addLayer({id:'sl-area',type:'line',source:'sl-area',paint:{'line-color':dark?'#2dd4bf':'#0f766e','line-width':3}});
   const hg=heatGrid(c);M._slHeat=hg;M.addSource('sl-heat',{type:'geojson',data:hg.fc});
   M.addLayer({id:'sl-heat',type:'fill-extrusion',source:'sl-heat',layout:{visibility:'none'},paint:{'fill-extrusion-height':['get','h'],'fill-extrusion-opacity':.65,'fill-extrusion-vertical-gradient':true,'fill-extrusion-color':['interpolate',['linear'],['get','q'],0,'#fde68a',.4,'#fbbf24',.7,'#f97316',.9,'#dc2626',1,'#7f1d1d']}});
