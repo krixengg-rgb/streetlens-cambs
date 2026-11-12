@@ -8,7 +8,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.ico" sizes="any">
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=18">
 <script>(()=>{const t=localStorage.getItem('sl-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t})()</script>
 <style>
 .method{max-width:760px;margin:0 auto;padding:28px 20px 64px}
@@ -24,6 +24,7 @@
 <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="9" fill="none" stroke="#5eead4" stroke-width="3.5"/><path d="M21 21l7 7" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/><path d="M9 16l3-4 3 3 3-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
 <span>Street<b>Lens</b></span></a>
 <a class="chip" href="./" style="margin-left:auto;color:#fff;border-color:#ffffff40">← Overview</a>
+<button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode"></button>
 </header>
 <main id="m" class="method" tabindex="-1">
 <a class="back tlink" href="./">← Back to StreetLens</a>
@@ -34,7 +35,7 @@
 <h2>What the map shows</h2>
 <ul>
 <li>Police anonymise each crime to a nearby street or landmark. A pin is not the exact address of an offence.</li>
-<li>Postcode views count crimes within a straight-line radius you choose (½, 1 or 2 miles). That circle is not a police beat.</li>
+<li>Postcode views count crimes within a straight-line radius you choose (½, 1 or 2 miles) and a time window you choose (last 3, 6 or 12 months). That circle is not a police beat.</li>
 <li>Heat columns count crimes in roughly 200 m squares. Taller and redder means more recorded crimes in that square.</li>
 <li>Only crimes published with a location are included. Some recorded crimes never appear on the map.</li>
 </ul>
@@ -50,7 +51,15 @@
 <li><b>Schools, GPs, dentists, bus and rail</b> come from DfE, Ofsted, NHS ODS and NaPTAN. Distances are straight-line.</li>
 <li><b>House prices</b> are medians of HM Land Registry standard residential sales for the latest 12 months of data.</li>
 <li><b>Flood, broadband and deprivation</b> (where shown) use Environment Agency, Ofcom and MHCLG open data for the postcode or its LSOA — not a property survey.</li>
+<li><b>Parks and playing fields</b> are centroids from OS Open Greenspace (OGL). A pin is the site’s centre, not an entrance, and the dataset covers publicly mapped greenspace rather than every open field.</li>
+<li><b>Stop and search</b> figures are Cambridgeshire Constabulary records published with a location. Outcomes are as recorded; most stops result in no further action. This is not a crime rate and is not broken down by personal characteristics on this site.</li>
 </ul>
+
+<h2>Year-on-year change</h2>
+<p>Where 24 months of data are available, we compare the latest 12 months with the 12 months before, for the county, each district, and each police crime type. A percentage is only shown for a type when the previous year had at least 20 recorded crimes of that type — small counts can swing by a large percentage. A change can reflect recording practice and police activity as well as offending. The overall figure is the change in all recorded crimes, not an average of the type percentages.</p>
+
+<h2>Time window on a postcode</h2>
+<p>The postcode dashboard defaults to the latest 12 months of published data. You can switch to the last 3 or 6 months; counts, charts, map markers, 3D columns and outcomes then use only those months. Share links can include <code>&amp;w=6</code> (or 3). District rates and year-on-year figures always use the full 12-month (or 24-month) official window, not the shorter control.</p>
 
 <h2>Lag and updates</h2>
 <p>Police data is usually published about two months after a month ends. StreetLens checks for a new month every Wednesday and refreshes when one appears.</p>
@@ -59,4 +68,15 @@
 <p>Most sources are under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>. House prices also carry: Contains HM Land Registry data © Crown copyright and database right 2026.</p>
 </main>
 <footer class="foot"><p><a href="./">StreetLens</a> · independent prototype</p></footer>
+<script>
+(function(){
+  const btn=document.getElementById('theme');
+  const set=()=>{const d=document.documentElement.dataset.theme==='dark';
+    btn.innerHTML=d?'<svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>':'<svg class="i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></svg>';
+    btn.setAttribute('aria-pressed',d)};
+  set();
+  btn.onclick=()=>{const d=document.documentElement.dataset.theme==='dark'?'light':'dark';
+    document.documentElement.dataset.theme=d; localStorage.setItem('sl-theme',d); set();};
+})();
+</script>
 </body></html>
