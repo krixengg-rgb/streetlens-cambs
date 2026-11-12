@@ -53,6 +53,19 @@ if ma:
         die("monthsAll tail must equal months")
     if "yoy" not in ov:
         die("overview.yoy missing when monthsAll present")
+    ty = ov.get("typeYoy") or {}
+    prev = ov.get("byTypePrev") or {}
+    if ty:
+        cats = {c["id"] for c in (summary.get("categories") or [])}
+        if not cats.issubset(ty.keys()):
+            die("typeYoy missing some categories")
+        prev_sum = sum(prev.values()) if prev else sum(v.get("prev", 0) for v in ty.values())
+        exp = sum(ov.get("monthly", {}).get(m, 0) for m in ma if m not in months)
+        if exp and (prev_sum < exp * 0.9 or prev_sum > exp * 1.1):
+            die(f"byTypePrev total {prev_sum} vs previous 12-month sum {exp}")
+        for d in summary["districts"]:
+            if not d.get("typeYoy"):
+                die(f"{d['name']} typeYoy missing")
 
 for name, (lo, hi) in RANGES.items():
     obj = load(NEW, name)

@@ -106,7 +106,7 @@ def main(force=False):
         die(f"too few crime categories: {catlist}")
 
     def blank():
-        return {"total": 0, "byType": {k: 0 for k in catlist}, "monthly": {m: 0 for m in months_all}}
+        return {"total": 0, "byType": {k: 0 for k in catlist}, "byTypePrev": {k: 0 for k in catlist}, "monthly": {m: 0 for m in months_all}}
 
     dist = {c: blank() for c in DIST}
     allc = blank()
@@ -146,6 +146,8 @@ def main(force=False):
                 agg["total"] += 1
                 agg["byType"][c["category"]] += 1
                 agg.setdefault("outcomes", [0] * 7)[ob(c)] += 1
+            else:
+                agg["byTypePrev"][c["category"]] += 1
         loc = c.get("location") or {}
         if not loc.get("latitude") or not loc.get("longitude"):
             continue
@@ -164,6 +166,14 @@ def main(force=False):
         die(f"too few point rows: {len(pts)}")
 
     tp = sum(pop.values())
+    def ss_ob(x):
+        name = ((x.get("outcome_object") or {}).get("name") or x.get("outcome") or "")
+        l = name.lower()
+        if "arrest" in l: return 0
+        if "summons" in l or "charged" in l: return 1
+        if any(k in l for k in ["community resolution", "caution", "warning", "penalty", "khat", "cannabis"]): return 2
+        if "no further action" in l or l in ("nfa", ""): return 3
+        return 4
     ss = []
     for m in months:
         for x in json.loads(get(f"{API}/stops-force?force=cambridgeshire&date={m}")):
@@ -172,6 +182,7 @@ def main(force=False):
                     round(float(x["location"]["latitude"]), 5),
                     round(float(x["location"]["longitude"]), 5),
                     months.index(m),
+                    ss_ob(x),
                 ])
     if len(ss) < 500:
         die(f"too few stop-and-search rows: {len(ss)}")
@@ -184,6 +195,23 @@ def main(force=False):
         agg["yoy"]=round((tot-prev_tot)/prev_tot*100,1) if prev_tot else None
     for c in DIST: add_yoy(dist[c])
     add_yoy(allc)
+
+    def add_type_yoy(agg):
+        ty = {}
+        for k in catlist:
+            cur, prev = agg["byType"].get(k, 0), agg.get("byTypePrev", {}).get(k, 0)
+            row = {"cur": int(cur), "prev": int(prev), "delta": int(cur) - int(prev)}
+            if prev >= 20:
+                row["yoy"] = round((cur - prev) / prev * 100, 1)
+                row["thin"] = False
+            else:
+                row["yoy"] = None
+                row["thin"] = True
+            ty[k] = row
+        agg["typeYoy"] = ty
+    for c in DIST:
+        add_type_yoy(dist[c])
+    add_type_yoy(allc)
 
     # Stage then replace so a crash mid-write cannot leave empty files
     stage = os.path.join(RAW, "_stage_crime")
