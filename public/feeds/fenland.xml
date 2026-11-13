@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>StreetLens — Fenland</title>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?d=fenland" rel="alternate"/>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/fenland.xml" rel="self"/>
+  <id>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/fenland.xml</id>
+  <updated>2026-11-09T00:00:00Z</updated>
+  <author><name>StreetLens</name></author>
+  <subtitle>Open crime and area figures for Cambridgeshire and Peterborough. Not an official police alert service.</subtitle>
+  <entry>
+    <title>StreetLens — Fenland: data updated</title>
+    <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?d=fenland"/>
+    <id>https://krixengg-rgb.github.io/streetlens-cambs/public/?d=fenland#update-2026-11-09</id>
+    <updated>2026-11-09T00:00:00Z</updated>
+    <summary>Fenland: 9,488 recorded crimes in the 12 months 2025-10 to 2026-09 (89.6 per 1,000). Year-on-year -2.1%. Police-recorded, anonymised locations.</summary>
+  </entry>
+</feed>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>StreetLens — Huntingdonshire</title>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?d=huntingdonshire" rel="alternate"/>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/huntingdonshire.xml" rel="self"/>
+  <id>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/huntingdonshire.xml</id>
+  <updated>2026-11-09T00:00:00Z</updated>
+  <author><name>StreetLens</name></author>
+  <subtitle>Open crime and area figures for Cambridgeshire and Peterborough. Not an official police alert service.</subtitle>
+  <entry>
+    <title>StreetLens — Huntingdonshire: data updated</title>
+    <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?d=huntingdonshire"/>
+    <id>https://krixengg-rgb.github.io/streetlens-cambs/public/?d=huntingdonshire#update-2026-11-09</id>
+    <updated>2026-11-09T00:00:00Z</updated>
+    <summary>Huntingdonshire: 12,950 recorded crimes in the 12 months 2025-10 to 2026-09 (67.5 per 1,000). Year-on-year -2.7%. Police-recorded, anonymised locations.</summary>
+  </entry>
+</feed>

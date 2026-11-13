@@ -1,0 +1,268 @@
+{
+  "area": "Cambridgeshire & Peterborough",
+  "generated": "2026-11-09",
+  "months": [
+    "2025-10",
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ],
+  "monthsAll": [
+    "2024-10",
+    "2024-11",
+    "2024-12",
+    "2025-01",
+    "2025-02",
+    "2025-03",
+    "2025-04",
+    "2025-05",
+    "2025-06",
+    "2025-07",
+    "2025-08",
+    "2025-09",
+    "2025-10",
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ],
+  "popYear": "2025",
+  "total": 83673,
+  "rate": 88.8,
+  "yoy": 2.5,
+  "population": 941740,
+  "outcomes": {
+    "Charged / summonsed": 6719,
+    "Out-of-court resolution": 2858,
+    "No suspect identified": 21807,
+    "Unable to prosecute / not in public interest": 26813,
+    "Under investigation": 9790,
+    "Other / transferred": 805,
+    "No outcome (ASB)": 14881
+  },
+  "byType": {
+    "anti-social-behaviour": 14881,
+    "bicycle-theft": 1632,
+    "burglary": 2984,
+    "criminal-damage-arson": 6485,
+    "drugs": 3057,
+    "other-crime": 2425,
+    "other-theft": 4995,
+    "possession-of-weapons": 1170,
+    "public-order": 4608,
+    "robbery": 667,
+    "shoplifting": 6879,
+    "theft-from-the-person": 699,
+    "vehicle-crime": 3522,
+    "violent-crime": 29669
+  },
+  "byTypePrev": {
+    "anti-social-behaviour": 14514,
+    "bicycle-theft": 1665,
+    "burglary": 2933,
+    "criminal-damage-arson": 6485,
+    "drugs": 2043,
+    "other-crime": 2145,
+    "other-theft": 5098,
+    "possession-of-weapons": 1090,
+    "public-order": 4659,
+    "robbery": 573,
+    "shoplifting": 7316,
+    "theft-from-the-person": 750,
+    "vehicle-crime": 3732,
+    "violent-crime": 28639
+  },
+  "typeYoy": {
+    "anti-social-behaviour": {
+      "cur": 14881,
+      "prev": 14514,
+      "delta": 367,
+      "yoy": 2.5,
+      "thin": false
+    },
+    "bicycle-theft": {
+      "cur": 1632,
+      "prev": 1665,
+      "delta": -33,
+      "yoy": -2.0,
+      "thin": false
+    },
+    "burglary": {
+      "cur": 2984,
+      "prev": 2933,
+      "delta": 51,
+      "yoy": 1.7,
+      "thin": false
+    },
+    "criminal-damage-arson": {
+      "cur": 6485,
+      "prev": 6485,
+      "delta": 0,
+      "yoy": 0.0,
+      "thin": false
+    },
+    "drugs": {
+      "cur": 3057,
+      "prev": 2043,
+      "delta": 1014,
+      "yoy": 49.6,
+      "thin": false
+    },
+    "other-crime": {
+      "cur": 2425,
+      "prev": 2145,
+      "delta": 280,
+      "yoy": 13.1,
+      "thin": false
+    },
+    "other-theft": {
+      "cur": 4995,
+      "prev": 5098,
+      "delta": -103,
+      "yoy": -2.0,
+      "thin": false
+    },
+    "possession-of-weapons": {
+      "cur": 1170,
+      "prev": 1090,
+      "delta": 80,
+      "yoy": 7.3,
+      "thin": false
+    },
+    "public-order": {
+      "cur": 4608,
+      "prev": 4659,
+      "delta": -51,
+      "yoy": -1.1,
+      "thin": false
+    },
+    "robbery": {
+      "cur": 667,
+      "prev": 573,
+      "delta": 94,
+      "yoy": 16.4,
+      "thin": false
+    },
+    "shoplifting": {
+      "cur": 6879,
+      "prev": 7316,
+      "delta": -437,
+      "yoy": -6.0,
+      "thin": false
+    },
+    "theft-from-the-person": {
+      "cur": 699,
+      "prev": 750,
+      "delta": -51,
+      "yoy": -6.8,
+      "thin": false
+    },
+    "vehicle-crime": {
+      "cur": 3522,
+      "prev": 3732,
+      "delta": -210,
+      "yoy": -5.6,
+      "thin": false
+    },
+    "violent-crime": {
+      "cur": 29669,
+      "prev": 28639,
+      "delta": 1030,
+      "yoy": 3.6,
+      "thin": false
+    }
+  },
+  "monthly": {
+    "2024-10": 6808,
+    "2024-11": 6151,
+    "2024-12": 5890,
+    "2025-01": 6065,
+    "2025-02": 5973,
+    "2025-03": 7031,
+    "2025-04": 6943,
+    "2025-05": 7351,
+    "2025-06": 7601,
+    "2025-07": 7775,
+    "2025-08": 7287,
+    "2025-09": 6767,
+    "2025-10": 6673,
+    "2025-11": 6559,
+    "2025-12": 6195,
+    "2026-01": 6682,
+    "2026-02": 5940,
+    "2026-03": 6880,
+    "2026-04": 6843,
+    "2026-05": 7319,
+    "2026-06": 7502,
+    "2026-07": 7713,
+    "2026-08": 7951,
+    "2026-09": 7416
+  },
+  "districts": [
+    {
+      "code": "E07000008",
+      "name": "Cambridge",
+      "total": 16991,
+      "rate": 113.4,
+      "yoy": 3.3,
+      "population": 149872
+    },
+    {
+      "code": "E07000009",
+      "name": "East Cambridgeshire",
+      "total": 5676,
+      "rate": 60.0,
+      "yoy": 10.5,
+      "population": 94599
+    },
+    {
+      "code": "E07000010",
+      "name": "Fenland",
+      "total": 9488,
+      "rate": 89.6,
+      "yoy": -2.1,
+      "population": 105930
+    },
+    {
+      "code": "E07000011",
+      "name": "Huntingdonshire",
+      "total": 12950,
+      "rate": 67.5,
+      "yoy": -2.7,
+      "population": 191941
+    },
+    {
+      "code": "E07000012",
+      "name": "South Cambridgeshire",
+      "total": 10288,
+      "rate": 58.9,
+      "yoy": 11.1,
+      "population": 174641
+    },
+    {
+      "code": "E06000031",
+      "name": "Peterborough",
+      "total": 28280,
+      "rate": 125.8,
+      "yoy": 1.8,
+      "population": 224757
+    }
+  ],
+  "licence": "Contains public sector information licensed under the Open Government Licence v3.0. Crime: data.police.uk.",
+  "note": "See method.html for how rates and outcomes are calculated."
+}

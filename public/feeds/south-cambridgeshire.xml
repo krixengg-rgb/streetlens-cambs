@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>StreetLens — South Cambridgeshire</title>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?d=south-cambridgeshire" rel="alternate"/>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/south-cambridgeshire.xml" rel="self"/>
+  <id>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/south-cambridgeshire.xml</id>
+  <updated>2026-11-09T00:00:00Z</updated>
+  <author><name>StreetLens</name></author>
+  <subtitle>Open crime and area figures for Cambridgeshire and Peterborough. Not an official police alert service.</subtitle>
+  <entry>
+    <title>StreetLens — South Cambridgeshire: data updated</title>
+    <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?d=south-cambridgeshire"/>
+    <id>https://krixengg-rgb.github.io/streetlens-cambs/public/?d=south-cambridgeshire#update-2026-11-09</id>
+    <updated>2026-11-09T00:00:00Z</updated>
+    <summary>South Cambridgeshire: 10,288 recorded crimes in the 12 months 2025-10 to 2026-09 (58.9 per 1,000). Year-on-year +11.1%. Police-recorded, anonymised locations.</summary>
+  </entry>
+</feed>

@@ -1,0 +1,217 @@
+{
+  "name": "Huntingdonshire",
+  "code": "E07000011",
+  "generated": "2026-11-09",
+  "months": [
+    "2025-10",
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ],
+  "monthsAll": [
+    "2024-10",
+    "2024-11",
+    "2024-12",
+    "2025-01",
+    "2025-02",
+    "2025-03",
+    "2025-04",
+    "2025-05",
+    "2025-06",
+    "2025-07",
+    "2025-08",
+    "2025-09",
+    "2025-10",
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ],
+  "total": 12950,
+  "rate": 67.5,
+  "yoy": -2.7,
+  "population": 191941,
+  "outcomes": {
+    "Charged / summonsed": 750,
+    "Out-of-court resolution": 552,
+    "No suspect identified": 2964,
+    "Unable to prosecute / not in public interest": 4293,
+    "Under investigation": 1689,
+    "Other / transferred": 179,
+    "No outcome (ASB)": 2523
+  },
+  "byType": {
+    "anti-social-behaviour": 2523,
+    "bicycle-theft": 123,
+    "burglary": 449,
+    "criminal-damage-arson": 1033,
+    "drugs": 572,
+    "other-crime": 410,
+    "other-theft": 680,
+    "possession-of-weapons": 184,
+    "public-order": 715,
+    "robbery": 55,
+    "shoplifting": 721,
+    "theft-from-the-person": 49,
+    "vehicle-crime": 608,
+    "violent-crime": 4828
+  },
+  "byTypePrev": {
+    "anti-social-behaviour": 2713,
+    "bicycle-theft": 182,
+    "burglary": 477,
+    "criminal-damage-arson": 1156,
+    "drugs": 386,
+    "other-crime": 372,
+    "other-theft": 717,
+    "possession-of-weapons": 179,
+    "public-order": 724,
+    "robbery": 50,
+    "shoplifting": 904,
+    "theft-from-the-person": 65,
+    "vehicle-crime": 606,
+    "violent-crime": 4785
+  },
+  "typeYoy": {
+    "anti-social-behaviour": {
+      "cur": 2523,
+      "prev": 2713,
+      "delta": -190,
+      "yoy": -7.0,
+      "thin": false
+    },
+    "bicycle-theft": {
+      "cur": 123,
+      "prev": 182,
+      "delta": -59,
+      "yoy": -32.4,
+      "thin": false
+    },
+    "burglary": {
+      "cur": 449,
+      "prev": 477,
+      "delta": -28,
+      "yoy": -5.9,
+      "thin": false
+    },
+    "criminal-damage-arson": {
+      "cur": 1033,
+      "prev": 1156,
+      "delta": -123,
+      "yoy": -10.6,
+      "thin": false
+    },
+    "drugs": {
+      "cur": 572,
+      "prev": 386,
+      "delta": 186,
+      "yoy": 48.2,
+      "thin": false
+    },
+    "other-crime": {
+      "cur": 410,
+      "prev": 372,
+      "delta": 38,
+      "yoy": 10.2,
+      "thin": false
+    },
+    "other-theft": {
+      "cur": 680,
+      "prev": 717,
+      "delta": -37,
+      "yoy": -5.2,
+      "thin": false
+    },
+    "possession-of-weapons": {
+      "cur": 184,
+      "prev": 179,
+      "delta": 5,
+      "yoy": 2.8,
+      "thin": false
+    },
+    "public-order": {
+      "cur": 715,
+      "prev": 724,
+      "delta": -9,
+      "yoy": -1.2,
+      "thin": false
+    },
+    "robbery": {
+      "cur": 55,
+      "prev": 50,
+      "delta": 5,
+      "yoy": 10.0,
+      "thin": false
+    },
+    "shoplifting": {
+      "cur": 721,
+      "prev": 904,
+      "delta": -183,
+      "yoy": -20.2,
+      "thin": false
+    },
+    "theft-from-the-person": {
+      "cur": 49,
+      "prev": 65,
+      "delta": -16,
+      "yoy": -24.6,
+      "thin": false
+    },
+    "vehicle-crime": {
+      "cur": 608,
+      "prev": 606,
+      "delta": 2,
+      "yoy": 0.3,
+      "thin": false
+    },
+    "violent-crime": {
+      "cur": 4828,
+      "prev": 4785,
+      "delta": 43,
+      "yoy": 0.9,
+      "thin": false
+    }
+  },
+  "monthly": {
+    "2024-10": 1027,
+    "2024-11": 967,
+    "2024-12": 872,
+    "2025-01": 1012,
+    "2025-02": 933,
+    "2025-03": 1201,
+    "2025-04": 1181,
+    "2025-05": 1231,
+    "2025-06": 1335,
+    "2025-07": 1304,
+    "2025-08": 1153,
+    "2025-09": 1100,
+    "2025-10": 1118,
+    "2025-11": 997,
+    "2025-12": 987,
+    "2026-01": 1034,
+    "2026-02": 935,
+    "2026-03": 1000,
+    "2026-04": 1026,
+    "2026-05": 1181,
+    "2026-06": 1232,
+    "2026-07": 1177,
+    "2026-08": 1159,
+    "2026-09": 1104
+  },
+  "licence": "Contains public sector information licensed under the Open Government Licence v3.0. Crime: data.police.uk."
+}

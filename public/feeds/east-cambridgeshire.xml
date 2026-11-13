@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>StreetLens — East Cambridgeshire</title>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?d=east-cambridgeshire" rel="alternate"/>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/east-cambridgeshire.xml" rel="self"/>
+  <id>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/east-cambridgeshire.xml</id>
+  <updated>2026-11-09T00:00:00Z</updated>
+  <author><name>StreetLens</name></author>
+  <subtitle>Open crime and area figures for Cambridgeshire and Peterborough. Not an official police alert service.</subtitle>
+  <entry>
+    <title>StreetLens — East Cambridgeshire: data updated</title>
+    <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?d=east-cambridgeshire"/>
+    <id>https://krixengg-rgb.github.io/streetlens-cambs/public/?d=east-cambridgeshire#update-2026-11-09</id>
+    <updated>2026-11-09T00:00:00Z</updated>
+    <summary>East Cambridgeshire: 5,676 recorded crimes in the 12 months 2025-10 to 2026-09 (60.0 per 1,000). Year-on-year +10.5%. Police-recorded, anonymised locations.</summary>
+  </entry>
+</feed>

@@ -103,6 +103,35 @@ if PREV and os.path.isdir(PREV):
             if len(b) < len(a) * 0.6:
                 errs.append(f"{name} shrunk too much: {len(a)} → {len(b)}")
 
+
+# Stage F: LSOA percentiles/centroids, downloads and Atom feeds
+lr = load(NEW, "lsoa_rates.json")
+if lr in (None, "__EMPTY__") or not isinstance(lr, dict) or not isinstance(lr.get("lsoa"), dict):
+    die("lsoa_rates.json missing or empty")
+lsoas = lr["lsoa"]
+if not (500 <= len(lsoas) <= 600):
+    die(f"lsoa count {len(lsoas)} unexpected")
+missing = 0
+for code, row in lsoas.items():
+    if not isinstance(row, dict) or row.get("rate") is None:
+        die(f"lsoa {code} missing rate")
+    if row.get("lat") is None or row.get("lon") is None or row.get("pct") is None:
+        missing += 1
+if missing > 10:
+    die(f"{missing} LSOAs missing centroid or percentile")
+
+DL = os.path.join(NEW, "downloads")
+FEEDS = os.path.join(ROOT, "public", "feeds")
+slugs = [d["name"].lower().replace(" ", "-") for d in summary["districts"]]
+for name in ["overview.json", "districts.csv"] + [s + ext for s in slugs for ext in (".json", ".csv")]:
+    p = os.path.join(DL, name)
+    if not os.path.exists(p) or os.path.getsize(p) < 40:
+        errs.append(f"download missing or tiny: {name}")
+for name in ["county.xml", "index.html"] + [s + ".xml" for s in slugs]:
+    p = os.path.join(FEEDS, name)
+    if not os.path.exists(p) or os.path.getsize(p) < 40:
+        errs.append(f"feed missing or tiny: {name}")
+
 if errs:
     for e in errs:
         print("SANITY FAIL:", e, file=sys.stderr)

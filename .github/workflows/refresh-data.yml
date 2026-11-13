@@ -83,6 +83,7 @@ jobs:
           python3 scripts/refresh_extras.py
           python3 scripts/refresh_area_extras.py || echo "area extras refresh skipped/failed (non-fatal)"
           python3 scripts/build_tiles_and_lsoa.py || echo "tiles/lsoa rebuild skipped/failed (non-fatal)"
+          python3 scripts/enrich_lsoa_and_feeds.py
           python3 scripts/sanity_check.py /tmp/prev-data
 
       - name: Restore data on failure
@@ -98,27 +99,37 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         run: |
           set -euo pipefail
-          if git diff --quiet -- public/data; then
+          if git diff --quiet -- public/data public/feeds; then
             echo "Data files unchanged after refresh; nothing to commit."
             exit 0
           fi
-          # bump ?v=N on style.css and app.js
+          # bump ?v=N on CSS/JS links and the service-worker precache
           python3 - <<'PY'
           import re, pathlib
-          p=pathlib.Path("public/index.html")
-          t=p.read_text()
-          m=re.search(r'[?&]v=(\d+)', t)
-          if not m: raise SystemExit("no cache version in index.html")
-          n=int(m.group(1))+1
-          t2=re.sub(r'([?&]v=)\d+', rf'\g<1>{n}', t)
-          p.write_text(t2)
+          n=None
+          for rel in ("public/index.html","public/method.html","public/embed.html"):
+              p=pathlib.Path(rel)
+              if not p.exists():
+                  continue
+              t=p.read_text()
+              if n is None:
+                  m=re.search(r'[?&]v=(\d+)', t)
+                  if not m: raise SystemExit("no cache version in "+rel)
+                  n=int(m.group(1))+1
+              p.write_text(re.sub(r'([?&]v=)\d+', rf'\g<1>{n}', t))
+          sw=pathlib.Path("public/sw.js")
+          if sw.exists() and n is not None:
+              t=sw.read_text()
+              t=re.sub(r"streetlens-v\d+", f"streetlens-v{n}", t)
+              t=re.sub(r"(\.(?:css|js)\?v=)\d+", rf"\g<1>{n}", t)
+              sw.write_text(t)
           print(f"cache version → {n}")
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           MONTH=$(python3 -c "import json;print(json.load(open('public/data/summary.json'))['months'][-1])")
           GEN=$(python3 -c "import json;print(json.load(open('public/data/summary.json'))['generated'])")
-          git add public/data public/index.html
+          git add public/data public/feeds public/index.html public/method.html public/embed.html public/sw.js
           git commit -m "data: refresh through ${MONTH} (generated ${GEN})"
           git push
 

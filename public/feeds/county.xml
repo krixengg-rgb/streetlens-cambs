@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>StreetLens — Cambridgeshire &amp; Peterborough</title>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/" rel="alternate"/>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/county.xml" rel="self"/>
+  <id>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/county.xml</id>
+  <updated>2026-11-09T00:00:00Z</updated>
+  <author><name>StreetLens</name></author>
+  <subtitle>Open crime and area figures for Cambridgeshire and Peterborough. Not an official police alert service.</subtitle>
+  <entry>
+    <title>StreetLens — Cambridgeshire &amp; Peterborough: data updated</title>
+    <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/"/>
+    <id>https://krixengg-rgb.github.io/streetlens-cambs/public/#update-2026-11-09</id>
+    <updated>2026-11-09T00:00:00Z</updated>
+    <summary>Recorded crimes in the 12 months 2025-10 to 2026-09: 83,673 (88.8 per 1,000 residents). Year-on-year +2.5%. Figures are police-recorded and locations are anonymised. Not a substitute for official community messaging.</summary>
+  </entry>
+</feed>
