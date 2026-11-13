@@ -19,10 +19,12 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="alternate" type="application/atom+xml" title="StreetLens Cambridgeshire updates" href="feeds/county.xml">
 <script>(()=>{const t=localStorage.getItem('sl-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t})()</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 </head><body>
 <a class="skip" href="#app">Skip to content</a>
 <header class="top"><a class="logo" href="./" data-nav="home" aria-label="StreetLens home">
@@ -32,10 +34,10 @@
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" data-tip="Switch between light and dark mode. Your choice is remembered on this device."></button>
 </header>
 <main id="app" tabindex="-1"></main>
-<footer class="foot"><div class="note"><b>Read with care.</b> Police anonymise crime locations to a nearby point, so crimes appear on streets or landmarks near where they happened. Rates per 1,000 use resident population, so town centres and busy areas look higher. Police data is published about two months after each month ends and only includes crimes recorded with a location. Distances are straight-line. <a href="method.html">How to read this site</a>.</div>
+<footer class="foot"><div class="note"><b>Read with care.</b> Police anonymise crime locations to a nearby point, so crimes appear on streets or landmarks near where they happened. Rates per 1,000 use resident population, so town centres and busy areas look higher. Police data is published about two months after each month ends and only includes crimes recorded with a location. Distances are straight-line. <a href="method.html">How to read this site</a>. Open data and district feeds sit on the overview. Official community messages from the force are on <a href="https://www.ecops.org.uk/" target="_blank" rel="noopener">eCops</a>.</div>
 <p>Contains public sector information licensed under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>. Crime, outcomes and stop and search: <a href="https://data.police.uk/">data.police.uk</a> (Cambridgeshire Constabulary). Population: ONS mid-year estimates via Nomis. GP and dental practices: NHS England Organisation Data Service (ODS), OGL. Schools: Department for Education Get Information about Schools, OGL; Ofsted state-funded schools management information, OGL. Bus stops and rail stations: NaPTAN (Department for Transport), OGL. House prices: contains HM Land Registry data © Crown copyright and database right 2026. This data is licensed under the Open Government Licence v3.0. Postcodes: <a href="https://postcodes.io">postcodes.io</a> (ONS/OS data). Flood risk: Environment Agency Risk of Flooding from Rivers and Sea, OGL. Broadband: Ofcom Connected Nations, OGL. Deprivation: English Indices of Deprivation (MHCLG), OGL. Greenspace: contains OS data © Crown copyright and database rights 2026, OS Open Greenspace, OGL. 2D map © OpenStreetMap contributors. 3D map: MapLibre GL JS (BSD-3-Clause) with vector tiles from <a href="https://openfreemap.org">OpenFreeMap</a> © OpenMapTiles, data © OpenStreetMap contributors. StreetLens is an independent prototype, not affiliated with any police force or public body. <span id="gen"></span></p></footer>
 <div id="tip" role="tooltip"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=18"></script></body></html>
+<script src="app.js?v=19"></script></body></html>

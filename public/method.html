@@ -8,7 +8,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.ico" sizes="any">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 <script>(()=>{const t=localStorage.getItem('sl-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t})()</script>
 <style>
 .method{max-width:760px;margin:0 auto;padding:28px 20px 64px}
@@ -60,6 +60,24 @@
 
 <h2>Time window on a postcode</h2>
 <p>The postcode dashboard defaults to the latest 12 months of published data. You can switch to the last 3 or 6 months; counts, charts, map markers, 3D columns and outcomes then use only those months. Share links can include <code>&amp;w=6</code> (or 3). District rates and year-on-year figures always use the full 12-month (or 24-month) official window, not the shorter control.</p>
+
+
+<h2>Neighbourhood rate and comparison</h2>
+<p>The LSOA rate is an approximate figure. We assign each published crime to the nearest 2021 LSOA population-weighted centroid, then divide by the LSOA’s mid-year population. Because police anonymise locations, this is not an official police LSOA statistic. Town centres often look high: visitors, shoppers and nightlife are not in the resident count.</p>
+<p>“Lower recorded rate than X% of local neighbourhoods” is the share of Cambridgeshire &amp; Peterborough LSOAs with a <em>higher</em> approximate rate than this one. It is a rank, not a safety score, and it is not adjusted for mixed use or deprivation. Nearby suggestions list other LSOAs within about five miles whose approximate rate is lower, with same-district areas first. They are not a recommendation to move.</p>
+
+<h2>Month grid</h2>
+<p>The year-at-a-glance grid colours each published month relative to the highest month on that chart. Police data is monthly only: there is no day-of-week or time-of-day detail on this site.</p>
+
+<h2>Place search, saved areas and feeds</h2>
+<p>You can type a postcode or a place name (for example Ely or Huntingdon). Place search uses postcodes.io and then opens the nearest postcode still in Cambridgeshire or Peterborough. Full street-address search is not offered, because that needs a paid or keyed service.</p>
+<p>Save area stores a short list on this device only (it does not create an account or send alerts). District Atom feeds update when StreetLens publishes a new monthly snapshot. They are not live incident alerts. For official messages from Cambridgeshire Constabulary, use <a href="https://www.ecops.org.uk/" target="_blank" rel="noopener">eCops</a>.</p>
+
+<h2>Embeds, downloads and the crime table</h2>
+<p>The embed snippet is a compact summary that links back to the full profile. CSV and JSON downloads repeat the published district figures. The “crimes as a table” view is the same records as the map, grouped by month, type and latest outcome, so the page stays usable without the map. Locations remain anonymised, so it is not a list of addresses.</p>
+
+<h2>Installing the site</h2>
+<p>StreetLens can be installed from your browser as a small app. The shell is cached so the overview can open offline; live lookups (postcodes, neighbourhood team) still need a connection, and a newly published month appears once the network fetch succeeds.</p>
 
 <h2>Lag and updates</h2>
 <p>Police data is usually published about two months after a month ends. StreetLens checks for a new month every Wednesday and refreshes when one appears.</p>

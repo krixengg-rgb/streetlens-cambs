@@ -1,0 +1,15 @@
+{
+  "name": "StreetLens — Cambridgeshire area insights",
+  "short_name": "StreetLens",
+  "description": "Crime, outcomes and local services for Cambridgeshire and Peterborough postcodes.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#14213d",
+  "theme_color": "#14213d",
+  "lang": "en-GB",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

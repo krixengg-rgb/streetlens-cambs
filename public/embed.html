@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>StreetLens embed</title>
+<link rel="stylesheet" href="style.css?v=19">
+<style>
+  html,body{background:transparent;margin:0}
+  .emb{font-family:Inter,system-ui,sans-serif;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--sh);max-width:420px}
+  .emb h1{font-size:18px;margin:0 0 2px;letter-spacing:-.02em}
+  .emb .w{color:var(--muted);font-size:13px;margin:0 0 10px}
+  .emb .ms{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0}
+  .emb .ms div{background:var(--neu-bg);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--muted)}
+  .emb .ms b{display:block;color:var(--ink);font-size:18px;margin-top:2px}
+  .emb footer{margin-top:10px;display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+  .emb a{color:var(--teal-d);font-weight:700}
+</style>
+<script>(()=>{const t=localStorage.getItem('sl-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t})()</script>
+</head>
+<body>
+<article class="emb" id="e"><p class="w">Loading StreetLens…</p></article>
+<script>
+const fmt=n=>Number(n).toLocaleString('en-GB');
+const slug=s=>s.toLowerCase().replace(/[^a-z]+/g,'-');
+const q=new URLSearchParams(location.search);
+const root=new URL('.', location.href);
+(async()=>{
+  const el=document.getElementById('e');
+  try{
+    const S=await fetch('data/summary.json').then(r=>r.json());
+    const period=S.months[0]+' to '+S.months.at(-1);
+    const pc=q.get('pc'), d=q.get('d');
+    let title='Cambridgeshire & Peterborough', sub=period+' · police-recorded crime', href=root.href;
+    let a=S.overview, extra='';
+    if(d){
+      const dist=S.districts.find(x=>slug(x.name)===d);
+      if(!dist){el.innerHTML='<p>Unknown district.</p>';return}
+      a=dist; title=dist.name; href=root.href+'?d='+encodeURIComponent(d);
+    }
+    if(pc){
+      const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc.replace(/\\s+/g,''))).then(x=>x.json());
+      if(!r||r.status!=200){el.innerHTML='<p>Postcode not found.</p>';return}
+      const ad=r.result.admin_district;
+      const dist=S.districts.find(x=>x.name===ad);
+      if(!dist){el.innerHTML='<p>This postcode is outside Cambridgeshire &amp; Peterborough.</p>';return}
+      title=r.result.postcode; sub=(r.result.admin_ward?r.result.admin_ward+', ':'')+ad+' · district figures, '+period;
+      href=root.href+'?pc='+encodeURIComponent(r.result.postcode);
+      a=dist;
+      let lsoaTxt='';
+      try{
+        const lr=await fetch('data/lsoa_rates.json').then(x=>x.json());
+        const code=r.result.codes&&(r.result.codes.lsoa21||r.result.codes.lsoa);
+        const row=code&&lr.lsoa[code];
+        if(row&&row.pct!=null) lsoaTxt=`Neighbourhood (LSOA) recorded rate ${row.rate} per 1,000 — lower than ${row.pct}% of local neighbourhoods (approximate).`;
+      }catch{}
+      extra=lsoaTxt;
+    }
+    const yoy=a.yoy==null?'–':((a.yoy>0?'+':'')+a.yoy+'%');
+    el.innerHTML=`<h1>${title}</h1><p class="w">${sub}</p>
+      <div class="ms">
+        <div>Crimes (12m)<b>${fmt(a.total)}</b></div>
+        <div>Per 1,000<b>${a.rate}</b></div>
+        <div>Year-on-year<b>${yoy}</b></div>
+      </div>
+      ${extra?'<p class="w" style="margin-top:10px">'+extra+'</p>':''}
+      <footer><span>StreetLens · open data</span><a href="${href}" target="_blank" rel="noopener">Open full profile</a></footer>`;
+  }catch(e){el.innerHTML='<p>Could not load StreetLens data.</p>'}
+})();
+</script>
+</body>
+</html>
