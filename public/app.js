@@ -311,7 +311,7 @@ function contextCard(row,title){
   const tenure=[row.owned!=null?`${row.owned}% owned their home`:'', row.social!=null?`${row.social}% rented socially`:'', row.priv!=null?`${row.priv}% rented privately or lived rent-free`:''].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1');
   const ageTxt=age.length?` ${age[4]}% of residents were aged 65 or over and ${age[0]}% were under 15.`:''
   const ctTxt=tb&&row.ctN?` On the council tax list at 31 March 2026, ${fmt(row.ctN)} domestic properties were recorded in this area. The most common band was ${tb.band}${tb.p!=null?' ('+tb.p+'%)':''}.`:'';
-  return `<div class="card" id="context"><div class="row"><h3>${title||'Households and council tax'}</h3>${tipI('Census 2021 tenure and age, plus Valuation Office council tax stock at 31 March 2026. This is background about the neighbourhood, not a judgement or a safety score. Census figures are from 2021 and will have changed. Council tax bands in England rest on 1991 values.')}</div>
+  return `<div class="card context-card"><div class="row"><h3>${title||'Households and council tax'}</h3>${tipI('Census 2021 tenure and age, plus Valuation Office council tax stock at 31 March 2026. This is background about the neighbourhood, not a judgement or a safety score. Census figures are from 2021 and will have changed. Council tax bands in England rest on 1991 values.')}</div>
   <p>${row.hh?fmt(row.hh)+' households at Census 2021: ':''}${tenure?tenure+'.':''}${ageTxt}${ctTxt}</p>
   <p class="muted">Shown as context only. Census 2021 (ONS, via Nomis) and VOA council tax stock, OGL. <a href="method.html">How to read this site</a>.</p></div>`;
 }
