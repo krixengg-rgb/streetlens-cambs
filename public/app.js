@@ -29,7 +29,7 @@ function badge(v,ref,label,higherIsBad=true,unit=''){if(ref==null||v==null||isNa
  if(Math.abs(diff)<5)return `<span class="badge neu">≈ Similar to ${label}</span>`;const up=diff>0,bad=up===higherIsBad;
  return `<span class="badge ${bad?'bad':'good'}">${up?'▲':'▼'} ${Math.abs(diff).toFixed(0)}% ${up?'higher':'lower'} than ${label}</span>`}
 function csv(name,rows){const b=new Blob([rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click()}
-window._csv={};const csvBtn=(id,rows,what)=>{window._csv[id]=rows;return `<button class="btn ghost" data-tip="Download ${what} as a CSV file for Excel or Google Sheets." onclick="csv('${id}.csv',_csv['${id}'])">${ic('dl',18)} CSV</button>`};
+window._csv={};const csvBtn=(id,rows,what)=>{window._csv[id]=rows;return `<button class="btn ghost" aria-label="Download ${what} as a CSV file" data-tip="Download ${what} as a CSV file for Excel or Google Sheets." onclick="csv('${id}.csv',_csv['${id}'])">${ic('dl',18)} CSV</button>`};
 function hav(a,b,c,d){const R=3958.8,r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
 const nearest=(arr,la,lo,n)=>arr.map(p=>Object.assign([...p],{d:hav(la,lo,p[0],p[1])})).sort((a,b)=>a.d-b.d).slice(0,n);
 const solveOf=a=>{const t=a.outcomes.reduce((x,y)=>x+y,0)-a.outcomes[6];return t?(a.outcomes[0]+a.outcomes[1])/t*100:0};
@@ -122,10 +122,11 @@ async function loadAreaExtras(postcode,lsoa){const pc=postcode.replace(/\s+/g,''
 async function loadNeighbourhood(la,lo,el){try{
  const loc=await fetch(`https://data.police.uk/api/locate-neighbourhood?q=${la},${lo}`).then(r=>r.ok?r.json():null);
  if(!loc||!loc.force||!loc.neighbourhood){el.innerHTML='<p class="muted">No neighbourhood team found for this point.</p>';return}
- const [info,pri,people]=await Promise.all([
+ const [info,pri,people,events]=await Promise.all([
   fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}`).then(r=>r.ok?r.json():null),
   fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/priorities`).then(r=>r.ok?r.json():[]),
-  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/people`).then(r=>r.ok?r.json():[])
+  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/people`).then(r=>r.ok?r.json():[]),
+  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/events`).then(r=>r.ok?r.json():[])
  ]);
  const name=(info&&info.name)||loc.neighbourhood.replace(/_/g,' ');
  const url=`https://www.police.uk/pu/your-area/${loc.force}/${loc.neighbourhood.toLowerCase().replace(/_/g,'-')}/`;
@@ -145,11 +146,26 @@ async function loadNeighbourhood(la,lo,el){try{
    const bio=stripHtml(p.bio||'').slice(0,200);
    return `<li><b>${esc(p.name||'Officer')}</b> <span class="muted">${esc(p.rank||'')}</span>${bio?`<div class="muted">${esc(bio)}${bio.length>=200?'…':''}</div>`:''}</li>`;
  }).join('');
+
+ const evHtml=(events||[]).filter(e=>e&&e.start_date).slice().sort((a,b)=>String(a.start_date).localeCompare(String(b.start_date))).map(e=>{
+   const start=new Date(e.start_date), end=e.end_date?new Date(e.end_date):null;
+   if(isNaN(start)) return '';
+   const when=start.toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/London'});
+   const until=end&&!isNaN(end)?('–'+end.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/London'})):'';
+   const desc=stripHtml(e.description||'').slice(0,240);
+   const addr=String(e.address||'');
+   const m=addr.match(/https?:\/\/[^\s<]+/);
+   const place=m?stripHtml(addr.replace(m[0],'')).trim():addr;
+   const link=m?`<a href="${esc(m[0])}" target="_blank" rel="noopener">Register or join</a>`:'';
+   return `<li><b>${esc(e.title||'Event')}</b><div class="muted">${esc(when)}${esc(until)}${place?(' · '+esc(place)):''}</div>${desc?`<div class="muted">${esc(desc)}${desc.length>=240?'…':''}</div>`:''}${link?`<div>${link}</div>`:''}</li>`;
+ }).join('');
  el.innerHTML=`<div class="row"><h3>Local policing</h3>${tipI('Neighbourhood team, contacts and priorities published by the force on data.police.uk. These change over time and are not StreetLens content. 101 is the non-emergency number.')}</div>
  <p><b>${esc(name)}</b> · ${esc(loc.force.replace(/-/g,' '))}</p>
  ${bits.length?`<p>${bits.join(' · ')}</p>`:''}
  ${priHtml?`<h4 class="subh">Current priorities</h4><ul class="pri">${priHtml}</ul>`:'<p class="muted">No current priorities were published for this team.</p>'}
+ ${evHtml?`<h4 class="subh">Upcoming beat meetings and drop-ins</h4><ul class="ev">${evHtml}</ul>`:'<p class="muted">No upcoming neighbourhood events are published for this team just now.</p>'}
  ${peoHtml?`<h4 class="subh">Neighbourhood officers</h4><ul class="peo">${peoHtml}</ul>`:''}
+ <p class="muted">Events, contacts and officers are as the force published them on data.police.uk and can change. For a non-emergency report use 101; call 999 in an emergency.</p>
  <p><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">Open on police.uk</a></p>`}
  catch{el.innerHTML='<p class="muted">Could not load neighbourhood details right now.</p>'}}
 
@@ -259,22 +275,120 @@ function sevColor(s){return s===1?'#9f1239':s===2?'#c2410c':'#64748b'}
 function sevName(s){return s===1?'Fatal':s===2?'Serious':'Slight'}
 
 async function fillHomeExtras(a,isAll){
+  let X=null;
+  try{X=await lj('home_extras')}catch{}
   try{
-    const H=await lj('hotspots');
+    const H=(X&&X.hotspots)||await lj('hotspots');
     const host=$('#hotspots');
     if(host){
-      const spots=isAll?H.spots.slice(0,10):((H.districts.find(d=>d.code===a.code)||{}).spots||[]);
+      const spots=isAll?(H.spots||[]).slice(0,10):((H.districts.find(d=>d.code===a.code)||{}).spots||[]);
       host.outerHTML=hotspotCard(spots,{title:isAll?'Most recorded locations in the county':'Most recorded locations in '+a.name,csvId:'homehot'});
     }
   }catch{const h=$('#hotspots'); if(h)h.innerHTML='<p class="muted">The location list could not be loaded just now.</p>'}
   try{
-    const C=await lj('collisions');
+    const C=(X&&X.collisions)||await lj('collisions');
     const host=$('#roads');
     if(host){
       const row=isAll?C.overview:(C.districts.find(d=>d.code===a.code)||C.overview);
-      host.outerHTML=collisionSummary(row,C,{title:isAll?'Injury collisions across the county':'Injury collisions in '+a.name,extra:isAll?'':'Figures are for the local authority district, not a postcode radius.'});
+      const html=collisionSummary(row,C,{title:isAll?'Injury collisions across the county':'Injury collisions in '+a.name,extra:isAll?'':'Figures are for the local authority district, not a postcode radius.'});
+      host.outerHTML=html+(row?explain('These are personal-injury collisions reported to the police in calendar years 2024 and 2025 — not the same window as the crime figures, and damage-only bumps are not included.'):'');
     }
   }catch{const h=$('#roads'); if(h)h.innerHTML='<p class="muted">Road collision figures could not be loaded just now.</p>'}
+}
+
+const explain=t=>`<p class="explain">${t}</p>`;
+function topBand(row){
+  if(!row||!row.ct||!row.ctN)return null;
+  const letters='ABCDEFGH';
+  let i=0; for(let k=1;k<row.ct.length;k++) if(row.ct[k]>(row.ct[i]||0)) i=k;
+  return {band:letters[i]||'?',n:row.ct[i]||0,p:row.ctN?Math.round(row.ct[i]/row.ctN*100):null};
+}
+function contextCard(row,title){
+  if(!row)return '';
+  const tb=topBand(row);
+  const age=row.age||[];
+  const tenure=[row.owned!=null?`${row.owned}% owned their home`:'', row.social!=null?`${row.social}% rented socially`:'', row.priv!=null?`${row.priv}% rented privately or lived rent-free`:''].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1');
+  const ageTxt=age.length?` ${age[4]}% of residents were aged 65 or over and ${age[0]}% were under 15.`:''
+  const ctTxt=tb&&row.ctN?` On the council tax list at 31 March 2026, ${fmt(row.ctN)} domestic properties were recorded in this area. The most common band was ${tb.band}${tb.p!=null?' ('+tb.p+'%)':''}.`:'';
+  return `<div class="card" id="context"><div class="row"><h3>${title||'Households and council tax'}</h3>${tipI('Census 2021 tenure and age, plus Valuation Office council tax stock at 31 March 2026. This is background about the neighbourhood, not a judgement or a safety score. Census figures are from 2021 and will have changed. Council tax bands in England rest on 1991 values.')}</div>
+  <p>${row.hh?fmt(row.hh)+' households at Census 2021: ':''}${tenure?tenure+'.':''}${ageTxt}${ctTxt}</p>
+  <p class="muted">Shown as context only. Census 2021 (ONS, via Nomis) and VOA council tax stock, OGL. <a href="method.html">How to read this site</a>.</p></div>`;
+}
+function distToSegMi(la,lo,aLat,aLon,bLat,bLon){
+  // Equirectangular, in miles; distance from a point to the straight segment A–B.
+  const kx=69.17*Math.cos(((aLat+bLat)/2)*Math.PI/180), ky=69.17;
+  const ax=aLon*kx, ay=aLat*ky, bx=bLon*kx, by=bLat*ky, px=lo*kx, py=la*ky;
+  const vx=bx-ax, vy=by-ay, l2=vx*vx+vy*vy;
+  const t=l2?Math.max(0,Math.min(1,((px-ax)*vx+(py-ay)*vy)/l2)):0;
+  const dx=px-(ax+t*vx), dy=py-(ay+t*vy);
+  return Math.sqrt(dx*dx+dy*dy);
+}
+
+
+
+function countyContext(CX){
+  const ds=Object.values((CX&&CX.districts)||{});
+  if(!ds.length)return null;
+  const hh=ds.reduce((s,d)=>s+(d.hh||0),0), pop=ds.reduce((s,d)=>s+(d.pop21||0),0);
+  const wavg=k=>hh?Math.round(ds.reduce((s,d)=>s+(d[k]||0)*(d.hh||0),0)/hh*10)/10:null;
+  const age=[0,0,0,0,0]; ds.forEach(d=>{if(d.age&&d.pop21)d.age.forEach((v,i)=>age[i]+=v*d.pop21)});
+  const ct=[0,0,0,0,0,0,0,0]; let ctN=0;
+  ds.forEach(d=>{if(d.ct)d.ct.forEach((v,i)=>ct[i]+=v); ctN+=d.ctN||0});
+  return {hh,owned:wavg('owned'),social:wavg('social'),priv:wavg('priv'),pop21:pop,age:age.map(v=>pop?Math.round(v/pop*10)/10:0),ct,ctN};
+}
+async function fillContextHost(dist,isAll,lsoaCode){
+  const hosts=[...document.querySelectorAll('#ctxhost')];
+  if(!hosts.length)return;
+  try{
+    const CX=await lj('context');
+    let row=null, title='Households and council tax';
+    if(lsoaCode&&CX.lsoa&&CX.lsoa[lsoaCode]){row=CX.lsoa[lsoaCode]; title='Households and council tax in this neighbourhood'}
+    else if(isAll){row=countyContext(CX); title='Households and council tax across the county'}
+    else if(dist&&CX.districts&&CX.districts[dist.code]){row=CX.districts[dist.code]; title='Households and council tax in '+dist.name}
+    const html=contextCard(row,title);
+    hosts.forEach(h=>{if(html)h.outerHTML=html; else h.innerHTML=''});
+  }catch{hosts.forEach(h=>h.innerHTML='')}
+}
+async function loadPointsCorridor(aLat,aLon,bLat,bLon,bandMi){
+  const meta=await lj('tiles/meta').catch(()=>null);
+  const pad=bandMi/69+0.02;
+  const minLa=Math.min(aLat,bLat)-pad, maxLa=Math.max(aLat,bLat)+pad;
+  const minLo=Math.min(aLon,bLon)-pad, maxLo=Math.max(aLon,bLon)+pad;
+  let pts;
+  if(!meta||!meta.cell){
+    const PP=await lj('points');
+    pts=PP.filter(p=>p[0]>=minLa&&p[0]<=maxLa&&p[1]>=minLo&&p[1]<=maxLo);
+  }else{
+    const cell=meta.cell;
+    const i0=Math.floor(minLa/cell), i1=Math.floor(maxLa/cell);
+    const j0=Math.floor(minLo/cell), j1=Math.floor(maxLo/cell);
+    const want=new Set();
+    for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++) want.add(i+'_'+j);
+    const files=[...want].filter(k=>meta.tiles.some(([ti,tj])=>ti+'_'+tj===k));
+    const chunks=await Promise.all(files.map(k=>fetch('data/tiles/'+k+'.json').then(r=>r.ok?r.json():[]).catch(()=>[])));
+    pts=[]; for(const arr of chunks) for(const p of arr) pts.push(p);
+  }
+  return pts.filter(p=>distToSegMi(p[0],p[1],aLat,aLon,bLat,bLon)<=bandMi);
+}
+const _cmp={};
+async function maybeCorridor(){
+  const host=$('#corridor'); if(!host)return;
+  const A=_cmp.a, B=_cmp.b;
+  if(!A||!B){host.innerHTML='';return}
+  const d=hav(A.la,A.lo,B.la,B.lo);
+  host.innerHTML='<div class="card"><p class="muted">Counting recorded crimes along the straight line between the two postcodes…</p></div>';
+  try{
+    const w=getW(), band=0.1553;
+    const pts=(await loadPointsCorridor(A.la,A.lo,B.la,B.lo,band)).filter(p=>inWindow(p,w));
+    if(_cmp.a!==A||_cmp.b!==B)return;
+    const cats=S.categories.map(c=>c.id), by={};
+    pts.forEach(p=>{by[cats[p[2]]]=(by[cats[p[2]]]||0)+1});
+    const top=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    host.innerHTML=`<div class="card" id="corridorcard"><div class="row"><h2>Along the line between ${esc(A.postcode)} and ${esc(B.postcode)}</h2>${tipI('A count of recorded crimes whose anonymised pin falls within 250 metres of the straight line between the two postcode centroids. This is not a driving, walking or public-transport route, and it is not a commute time.')}</div>
+    <div class="ms"><div>Straight-line distance<b>${d.toFixed(1)} mi</b></div><div>Crimes within 250m of the line<b>${fmt(pts.length)}</b></div><div>Time window<b>${esc(wLabel(w))}</b></div></div>
+    ${top.length?`<p>Most common along the line: ${top.map(([k,n])=>esc(cn(k))+' ('+fmt(n)+')').join(', ')}.</p>`:''}
+    <p class="muted">This is a corridor around a straight line, not a recommended route. Pins are snapped to a public location, so the count is not a street-by-street tally.</p></div>`;
+  }catch{if($('#corridor')===host) host.innerHTML='<div class="card"><p class="muted">The line comparison could not be loaded just now.</p></div>'}
 }
 
 async function loadNearHotspots(la,lo,rMi,el){
@@ -331,7 +445,7 @@ function downloadCard(info){
 function roundRect(x,x0,y0,w,h,r){x.beginPath();x.moveTo(x0+r,y0);x.arcTo(x0+w,y0,x0+w,y0+h,r);x.arcTo(x0+w,y0+h,x0,y0+h,r);x.arcTo(x0,y0+h,x0,y0,r);x.arcTo(x0,y0,x0+w,y0,r);x.closePath()}
 function wrapText(x,text,x0,y,max,lh){const words=text.split(' ');let line='',yy=y;for(const w of words){const t=line+w+' ';if(x.measureText(t).width>max&&line){x.fillText(line,x0,yy);line=w+' ';yy+=lh}else line=t}if(line)x.fillText(line,x0,yy)}
 
-function cardBtn(id){return `<button class="btn ghost" id="${id}" type="button" data-tip="Download a PNG summary card you can share or save. It is a snapshot of the figures on screen, not an official certificate.">${ic('image',18)}<span class="sl">Card</span></button>`}
+function cardBtn(id){return `<button class="btn ghost" id="${id}" type="button" aria-label="Download a PNG summary card" data-tip="Download a PNG summary card you can share or save. It is a snapshot of the figures on screen, not an official certificate.">${ic('image',18)}<span class="sl">Card</span></button>`}
 
 function leagueView(){
   setMeta('District and neighbourhood league — StreetLens','Sortable recorded-crime rates for Cambridgeshire & Peterborough districts and neighbourhoods (LSOAs). The neighbourhood rank is not a safety score.',location.origin+location.pathname+'?view=league');
@@ -344,8 +458,8 @@ function leagueView(){
    <td><a class="tlink" href="?${dq(d)}" data-q="${dq(d)}">${esc(d.name)}</a></td><td class="n">${fmt(d.total)}</td><td class="n">${fmt(d.population)}</td><td class="n">${d.rate}</td><td class="n">${solveOf(d).toFixed(1)}%</td><td class="n">${d.yoy==null?'–':`<span class="yoy ${d.yoy>0?'up':d.yoy<0?'down':''}">${d.yoy>0?'+':''}${d.yoy}%</span>`}</td></tr>`).join('')}</tbody></table></div></div>
   <div class="card" style="margin-top:18px"><div class="row"><h2>Neighbourhoods (LSOAs)</h2><span class="ctl"><label class="sr-only" for="lq">Filter neighbourhoods</label><input id="lq" type="search" placeholder="Filter by name or district" aria-controls="lsoa-status" style="min-height:44px;border:1px solid var(--line);border-radius:10px;padding:0 12px;font:inherit;background:var(--card);color:var(--ink);min-width:min(260px,100%)"></span></div>
   <p class="muted" id="lsoa-status" aria-live="polite">Loading neighbourhood rates…</p>
-  <div style="overflow-x:auto"><table class="sortable" id="llsoa"><thead><tr>${[['name','Neighbourhood',0],['la','District',0],['n','Crimes',1],['pop','Residents',1],['rate','Per 1,000',1],['pct','Lower than %',1],['band','Band',0]].map(([k,l,n])=>`<th class="${n?'n':''}" aria-sort="${k==='rate'?'descending':'none'}"><button type="button" data-k="${k}" data-n="${n}">${l}</button></th>`).join('')}</tr></thead><tbody></tbody></table></div>
-  <p class="muted">Approximate LSOA rates: each published crime is assigned to the nearest 2021 LSOA centroid. “Lower than %” is the share of local neighbourhoods with a higher approximate rate. It is not a safety score. <a href="method.html">How to read this site</a>.</p></div>
+  <div style="overflow-x:auto"><table class="sortable" id="llsoa"><thead><tr>${[['name','Neighbourhood',0],['la','District',0],['n','Crimes',1],['pop','Residents',1],['rate','Per 1,000',1],['pct','Lower than %',1],['band','Band',0]].map(([k,l,n])=>`<th class="${n?'n':''}" aria-sort="${k==='rate'?'descending':'none'}"><button type="button" data-k="${k}" data-n="${n}">${l}</button></th>`).join('')}<th>Trend</th></tr></thead><tbody></tbody></table></div>
+  <p class="muted">Approximate LSOA rates: each published crime is assigned to the nearest 2021 LSOA centroid. “Lower than %” is the share of local neighbourhoods with a higher approximate rate. It is not a safety score. The trend sparkline shows how assigned counts moved over the latest 12 months; it is a shape, not a second official total, and is not sortable. <a href="method.html">How to read this site</a>.</p></div>
   </section></div>`;
   wireSort($('#ldist'));
   $('#leaguecard').onclick=()=>downloadCard({title:'Cambridgeshire & Peterborough',where:`District league · ${mname(S.months[0])} – ${mname(S.months.at(-1))}`,file:'league',rows:dists.slice(0,4).map(d=>({lab:d.name,val:d.rate,sub:'per 1,000'})),caveat:'Rates use resident population, so town centres look higher. Neighbourhood ranks on this site are not a safety score.'});
@@ -355,8 +469,8 @@ function leagueView(){
       const rows=Object.entries(lr.lsoa).map(([id,v])=>({id,...v})).sort((a,b)=>b.rate-a.rate);
       const tb=$('#llsoa tbody'), st=$('#lsoa-status');
       const draw=list=>{tb.innerHTML=list.slice(0,516).map(r=>`<tr data-name="${esc(r.name||r.id)}" data-la="${esc(r.la||'')}" data-n="${r.n}" data-pop="${r.pop}" data-rate="${r.rate}" data-pct="${r.pct??''}" data-band="${esc(r.band||'')}">
-        <td>${esc(r.name||r.id)}</td><td>${esc(r.la||'')}</td><td class="n">${fmt(r.n)}</td><td class="n">${fmt(r.pop)}</td><td class="n">${r.rate}</td><td class="n">${r.pct==null?'–':r.pct}</td><td><span class="badge ${r.band==='Low'?'good':r.band==='High'?'bad':'neu'}">${esc(r.band||'')}</span></td></tr>`).join('');
-        st.textContent=list.length+' neighbourhoods shown. Approximate rates, not official police LSOA statistics.';};
+        <td>${esc(r.name||r.id)}</td><td>${esc(r.la||'')}</td><td class="n">${fmt(r.n)}</td><td class="n">${fmt(r.pop)}</td><td class="n">${r.rate}</td><td class="n">${r.pct==null?'–':r.pct}</td><td><span class="badge ${r.band==='Low'?'good':r.band==='High'?'bad':'neu'}">${esc(r.band||'')}</span></td><td class="sparktd">${r.mv&&r.mv.length?spark(r.mv):'–'}</td></tr>`).join('');
+        st.textContent=list.length+' neighbourhoods shown. Approximate rates, not official police LSOA statistics. The trend line is a month-by-month shape from the same nearest-centroid assignment and is not used for sorting.';};
       draw(rows); wireSort($('#llsoa'));
       const inp=$('#lq');
       inp.addEventListener('input',()=>{const q=inp.value.trim().toLowerCase();const list=!q?rows:rows.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.la||'').toLowerCase().includes(q)||(r.id||'').toLowerCase().includes(q));draw(list);wireSort($('#llsoa'))});
@@ -436,7 +550,7 @@ function typeTable(byType,total,id,typeYoy){
     return '<tr><td>'+cn(k)+'</td><td class="n">'+fmt(v)+'</td><td class="n">'+share+'%</td>'+ycells+'<td><div class="bar"><i style="width:'+(max?v/max*100:0)+'%"></i></div></td></tr>';
   }).join('');
   return `<div class="row"><h3>By crime type</h3><span class="ctl">${csvBtn(id,csvRows,'this crime-type table')}${tipI(typeYoy?'Latest 12 months versus the 12 months before. A year-on-year percentage is only shown when the previous year had at least 20 crimes of that type.':'Each row is a police crime category. Share is its percentage of all crimes shown.')}</span></div>
- <div style="overflow-x:auto"><table><thead><tr><th>Type</th><th class="n">Count</th><th class="n">Share</th>${typeYoy?'<th class="n">Previous</th><th class="n">YoY</th>':''}<th style="width:22%"><span class="sr">Bar</span></th></tr></thead><tbody>${body}</tbody></table></div>`;
+ <div style="overflow-x:auto"><table><thead><tr><th scope="col">Type</th><th class="n" scope="col">Count</th><th class="n" scope="col">Share</th>${typeYoy?'<th class="n" scope="col">Previous</th><th class="n" scope="col">YoY</th>':''}<th style="width:22%"><span class="sr-only">Share bar</span></th></tr></thead><tbody>${body}</tbody></table></div>`;
 }
 function movingPanel(a){const ty=a.typeYoy; if(!ty)return '';
  const rows=Object.keys(ty).map(id=>({id,...ty[id]}));
@@ -473,9 +587,9 @@ function drawSsTrend(el,nearSS,w){if(!el)return; const months=wMonths(w||12), of
 const kpi=(icon,lab,val,sub,tip,extra='')=>`<div class="card kpi"><div class="lab">${ic(icon)}${lab}${tip?tipI(tip):''}</div><div class="val">${val}</div><div class="sub">${sub||''}</div>${extra}</div>`;
 /* ---------- tooltips (hover, focus, tap) ---------- */
 const tip=$('#tip');let tipEl=null,tipT=0;const touch=matchMedia('(hover:none)').matches;
-function showTip(el){const t=el.getAttribute('data-tip');if(!t)return;tipEl=el;tip.textContent=t;tip.classList.add('show');const r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
+function showTip(el){const t=el.getAttribute('data-tip');if(!t)return;tipEl=el;tip.textContent=t;tip.classList.add('show');tip.setAttribute('aria-hidden','false');const r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
  let x=Math.min(Math.max(8,r.left+r.width/2-w/2),innerWidth-w-8),y=r.bottom+8;if(y+h>innerHeight-8)y=r.top-h-8;tip.style.left=x+'px';tip.style.top=y+'px';el.setAttribute('aria-describedby','tip');if(el.classList.contains('tip-i'))el.setAttribute('aria-expanded','true')}
-function hideTip(){if(tipEl){tipEl.removeAttribute('aria-describedby');tipEl.removeAttribute('aria-expanded')}tipEl=null;tip.classList.remove('show')}
+function hideTip(){if(tipEl){tipEl.removeAttribute('aria-describedby');tipEl.removeAttribute('aria-expanded')}tipEl=null;tip.classList.remove('show');tip.setAttribute('aria-hidden','true')}
 document.addEventListener('mouseover',e=>{if(touch)return;const el=e.target.closest('[data-tip]');if(el)showTip(el);else if(tipEl&&!tipEl.classList.contains('tip-i'))hideTip()});
 document.addEventListener('focusin',e=>{const el=e.target.closest('[data-tip]');if(el){showTip(el);tipT=Date.now()}else hideTip()});
 document.addEventListener('focusout',()=>hideTip());
@@ -556,6 +670,9 @@ function home(dist){const a=dist||S.overview,isAll=!dist,period=`${mname(S.month
  ${kpi('check','Solve rate',as.toFixed(1)+'%',isAll?`${fmt(a.outcomes[0]+a.outcomes[1])} crimes resolved`:badge(as,cs,'county',false),'Share of crimes (excluding anti-social behaviour, which has no outcomes) where someone was charged or summonsed, or got an out-of-court resolution such as a caution. Uses the latest recorded outcome.')}
  ${kpi('home','Median house price',price?'£'+fmt(price[0]):'£'+fmt(cp),price?`${badge(price[0],cp,'county',false).replace(/bad|good/,'neu')} ${fmt(price[1])} sales`:'Weighted across districts','Median price of standard residential sales recorded by HM Land Registry, '+PR.from.slice(0,7)+' to '+PR.to.slice(0,7)+'.')}
  </div>
+ ${explain((isAll?'Across the county, ':'In '+esc(a.name)+', ')+fmt(a.total)+' crimes were recorded in the latest 12 months, which is '+a.rate+' for every 1,000 residents. Town centres often look higher because visitors are not counted in the population.')}
+ ${explain('The solve rate is the share of non-ASB crimes whose latest outcome is a charge, summons or out-of-court resolution. Many cases are still under investigation, especially in recent months.')}
+ <div id="ctxhost"></div>
  ${movingPanel(a)}
  ${isAll?`<section class="sec"><div class="sec-h"><div><h2>Districts at a glance</h2><p>Select a district for its full profile.</p></div></div><div class="dcards">${S.districts.map(d=>{const s=solveOf(d);return `<a class="card dcard" href="?${dq(d)}" data-q="${dq(d)}" data-tip="Open the ${d.name} profile."><h3>${d.name} <span aria-hidden="true">→</span></h3>${badge(d.rate,S.overview.rate,'county')}${d.yoy!=null?`<div class="muted" style="font-size:13px;margin:4px 0">YoY ${d.yoy>0?'+':''}${d.yoy}%</div>`:''}<div class="ms"><div>Per 1,000<b>${d.rate}</b></div><div>Solved<b>${s.toFixed(1)}%</b></div><div>Median<b>£${fmt(Math.round(PR.districts[d.code][0]/1000))}k</b></div></div>${spark(S.months.map(m=>d.monthly[m]))}</a>`}).join('')}</div></section>`:''}
  <section class="sec"><div class="sec-h"><div><h2>Crime</h2><p>What is recorded and how it changes month to month.</p></div></div>
@@ -565,8 +682,9 @@ function home(dist){const a=dist||S.overview,isAll=!dist,period=`${mname(S.month
 </section>
  <section class="sec"><div class="sec-h"><div><h2>Outcomes &amp; homes</h2><p>How crimes were resolved, and what homes sell for.</p></div></div>
  ${outcomeFunnel(a.outcomes)}
+ ${explain('“Charged / resolved” combines a charge or summons with out-of-court results such as a caution. Figures use the latest recorded outcome and can change as cases progress.')}
  <div class="grid2"><div class="card">${outTable(a.outcomes,'out')}</div><div class="card"><div class="row"><h3>House prices</h3>${tipI('Median price of standard residential sales recorded by HM Land Registry in the latest 12 months of data.')}</div>
- <table><thead><tr><th>Area</th><th class="n">Median</th><th class="n">Sales</th></tr></thead><tbody>${(isAll?S.districts:[a]).map(d=>`<tr><td>${d.name}</td><td class="n">£${fmt(PR.districts[d.code][0])}</td><td class="n">${fmt(PR.districts[d.code][1])}</td></tr>`).join('')}</tbody></table><p class="muted">${PR.from.slice(0,7)} to ${PR.to.slice(0,7)}</p>
+ <table><thead><tr><th scope="col">Area</th><th class="n" scope="col">Median</th><th class="n" scope="col">Sales</th></tr></thead><tbody>${(isAll?S.districts:[a]).map(d=>`<tr><td>${d.name}</td><td class="n">£${fmt(PR.districts[d.code][0])}</td><td class="n">${fmt(PR.districts[d.code][1])}</td></tr>`).join('')}</tbody></table><p class="muted">${PR.from.slice(0,7)} to ${PR.to.slice(0,7)}</p>
  ${isAll?`<div class="row" style="margin-top:8px"><h3>Crime rate vs median price</h3>${tipI('Each dot is a district: crimes per 1,000 residents against median house price.')}</div><div style="height:240px"><canvas id="scatter" aria-label="Crime rate against house price by district"></canvas></div>`:''}</div></div></section>
  ${isAll?`<section class="sec"><div class="card"><div class="row"><h3>Districts compared</h3><span class="ctl"><a class="tlink" href="?view=league" data-q="view=league">Full league</a> ${csvBtn('districts',[['District','Crimes','Population','Per 1,000','Solve rate %','YoY %','Median price'],...S.districts.map(d=>[d.name,d.total,d.population,d.rate,solveOf(d).toFixed(1),d.yoy==null?'':d.yoy,PR.districts[d.code][0]])],'the district comparison')}${tipI('Districts ranked by crimes per 1,000 residents.')}</span></div>
  <div style="overflow-x:auto"><table><thead><tr><th>District</th><th class="n">Crimes</th><th class="n">Residents</th><th class="n">Per 1,000</th><th class="n">Solved</th><th class="n">YoY</th></tr></thead><tbody>${[...S.districts].sort((x,y)=>y.rate-x.rate).map(d=>`<tr><td><a class="tlink" href="?${dq(d)}" data-q="${dq(d)}" data-tip="Open the ${d.name} profile.">${d.name}</a></td><td class="n">${fmt(d.total)}</td><td class="n">${fmt(d.population)}</td><td class="n">${d.rate}</td><td class="n">${solveOf(d).toFixed(1)}%</td><td class="n">${d.yoy==null?'–':`<span class="yoy ${d.yoy>0?'up':d.yoy<0?'down':''}">${d.yoy>0?'+':''}${d.yoy}%</span>`}</td></tr>`).join('')}</tbody></table></div></div></section>`:''}
@@ -579,6 +697,7 @@ function home(dist){const a=dist||S.overview,isAll=!dist,period=`${mname(S.month
  if($('#season')) drawSeason($('#season'),a.monthly,mAll,isAll?null:S.overview.monthly);
  if($('#tcmp')) drawTypeCompare($('#tcmp'),a.byType,a.total);
  fillHomeExtras(a,isAll);
+ fillContextHost(isAll?null:a,isAll);
  const cardh=$('#homecard'); if(cardh) cardh.onclick=()=>downloadCard({title:a.name,where:`${mname(S.months[0])} – ${mname(S.months.at(-1))} · police-recorded crime`,file:slug(a.name),rows:[{lab:'Recorded crimes',val:fmt(a.total),sub:a.yoy==null?'12 months':('YoY '+(a.yoy>0?'+':'')+a.yoy+'%')},{lab:'Per 1,000 residents',val:a.rate,sub:isAll?'County figure':'County '+S.overview.rate},{lab:'Solve rate',val:solveOf(a).toFixed(1)+'%',sub:isAll?'Charged or out-of-court':'County '+solveOf(S.overview).toFixed(1)+'%'}],caveat:'Rates use resident population, so town centres look higher. This card is a snapshot, not a safety score.'});
  const embd=$('#emb-d'); if(embd) embd.onclick=()=>showEmbed('d',slug(a.name));if(isAll){chartTheme();charts.push(new Chart($('#scatter'),{type:'scatter',data:{datasets:[{data:S.districts.map(d=>({x:PR.districts[d.code][0],y:d.rate,n:d.name})),backgroundColor:css('--teal'),pointRadius:8,pointHoverRadius:10}]},options:{animation:reduce?false:undefined,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.n}: £${fmt(c.raw.x)}, ${c.raw.y} per 1,000`}}},scales:{x:{title:{display:true,text:'Median house price (£)'},ticks:{callback:v=>'£'+v/1000+'k'}},y:{beginAtZero:true,title:{display:true,text:'Crimes per 1,000'}}}}}))}}
 function countyMedian(){let n=0,s=0;S.districts.forEach(d=>{const p=PR.districts[d.code];s+=p[0]*p[1];n+=p[1]});return Math.round(s/n/1000)*1000}
@@ -596,18 +715,19 @@ function compareView(a,b){
  app.innerHTML=`<div class="wrap"><section class="sec"><div class="sec-h"><div><h1>Compare two postcodes</h1><p>Same radius and time window on both sides. Share with <code>?compare=1&a=PE29+3TN&b=CB2+1TN</code>.</p></div>
   <div class="ctl">${radiusBar(getR())}${windowBar(getW())}<button class="btn ghost" id="cswap" type="button">Swap</button></div></div>
   <div class="compare">${box('a','e.g. PE29 3TN')}${box('b','e.g. CB2 1TN')}</div>
-  <p class="muted"><a href="method.html">How to read these figures</a></p></section></div>`;
+  <div id="corridor" style="margin-top:18px"></div>
+  <p class="muted">The line comparison, when both postcodes are loaded, counts crimes within 250 metres of the straight line between them — not a driving route. <a href="method.html">How to read these figures</a></p></section></div>`;
  document.querySelectorAll('.rbtn[data-r]').forEach(btn=>btn.onclick=()=>{setR(parseFloat(btn.dataset.r));compareView(a,b)});
  document.querySelectorAll('.rbtn[data-w]').forEach(btn=>btn.onclick=()=>{setW(parseInt(btn.dataset.w,10));compareView(a,b)});
  $('#cswap').onclick=()=>go('compare=1&a='+encodeURIComponent(b||'')+'&b='+encodeURIComponent(a||''));
  document.querySelectorAll('.cform').forEach(f=>f.onsubmit=e=>{e.preventDefault();const v=new FormData(f).get('pc').trim().toUpperCase();const side=f.dataset.side;
   const na=side==='a'?v:(a||''); const nb=side==='b'?v:(b||''); go('compare=1&a='+encodeURIComponent(na)+'&b='+encodeURIComponent(nb))});
- if(a)fillCompare('a',a); if(b)fillCompare('b',b)}
+ _cmp.a=_cmp.b=null; if(a)fillCompare('a',a); if(b)fillCompare('b',b)}
 async function fillCompare(side,raw){const el=$('#c-'+side); el.innerHTML='<div class="sk" style="height:180px"></div>';
- const pcq=raw.replace(/\s+/g,'').toUpperCase(); let r; try{r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pcq)).then(x=>x.json())}catch{el.innerHTML='<p class="muted">Lookup failed.</p>';return}
- if(!r||r.status!=200){el.innerHTML='<p class="muted">Postcode not found.</p>';return}
+ const pcq=raw.replace(/\s+/g,'').toUpperCase(); let r; try{r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pcq)).then(x=>x.json())}catch{el.innerHTML='<p class="muted">Lookup failed.</p>';_cmp[side]=null;maybeCorridor();return}
+ if(!r||r.status!=200){el.innerHTML='<p class="muted">Postcode not found.</p>';_cmp[side]=null;maybeCorridor();return}
  const R=r.result,{latitude:la,longitude:lo,postcode}=R,ad=R.admin_district,dist=S.districts.find(d=>d.name==ad);
- if(!dist){el.innerHTML=`<p class="muted">${esc(postcode)} is outside Cambridgeshire &amp; Peterborough.</p>`;return}
+ if(!dist){el.innerHTML=`<p class="muted">${esc(postcode)} is outside Cambridgeshire &amp; Peterborough.</p>`;_cmp[side]=null;maybeCorridor();return}
  const rMi=getR(),w=getW(); const near= (await loadPointsNear(la,lo,rMi)).filter(p=>inWindow(p,w));
  const cats=S.categories.map(c=>c.id),by={},oc=[0,0,0,0,0,0,0]; near.forEach(p=>{by[cats[p[2]]]=(by[cats[p[2]]]||0)+1;oc[p[4]]++});
  const nonAsb=near.length-oc[6],solve=nonAsb?(oc[0]+oc[1])/nonAsb*100:null;
@@ -622,7 +742,8 @@ async function fillCompare(side,raw){const el=$('#c-'+side); el.innerHTML='<div 
   </div>
   ${lsoaHtml}
   <p class="muted" style="margin-top:10px">Most common: ${busiest?cn(busiest[0])+' ('+fmt(busiest[1])+')':'–'}</p>
-  <p><a class="btn ghost" href="?pc=${encodeURIComponent(postcode)}" data-q="pc=${encodeURIComponent(postcode)}">Open full dashboard</a></p>`}
+  <p><a class="btn ghost" href="?pc=${encodeURIComponent(postcode)}" data-q="pc=${encodeURIComponent(postcode)}">Open full dashboard</a></p>`;
+ _cmp[side]={la,lo,postcode}; maybeCorridor()}
 
 const LAYERS={crimes:{n:'Crimes',c:'#f59e0b',i:'shield',t:'Crime points within the chosen radius, clustered. Colour: amber.'},collisions:{n:'Collisions',c:'#c2410c',i:'car',t:'Personal-injury road collisions (DfT STATS19, 2024–2025) within the radius. Red is fatal, orange serious, slate slight. Not crime snap points.'},gp:{n:'GPs',c:'#e11d48',i:'heart',t:'GP surgeries within 5 miles (NHS ODS). Colour: red.'},dent:{n:'Dentists',c:'#7c3aed',i:'tooth',t:'Dental practices within 5 miles (NHS ODS). Colour: purple.'},sch:{n:'Schools',c:'#16a34a',i:'school',t:'Open schools within 5 miles with phase and Ofsted grade (DfE GIAS, Ofsted). Colour: green.'},bus:{n:'Bus stops',c:'#2563eb',i:'bus',t:'Bus stops within 3 miles (NaPTAN), clustered. Colour: blue.'},rail:{n:'Rail',c:'#334155',i:'train',t:'Railway stations (NaPTAN). Colour: slate.'},heat:{n:'Heat columns',c:'#dc2626',i:'chart',t:'3D only: crimes counted in 200m squares within the chosen radius and drawn as columns. Taller and redder means more crimes. Turning this on switches to 3D.'},park:{n:'Parks',c:'#15803d',i:'park',t:'Parks, playing fields, play spaces and similar sites from OS Open Greenspace (centroids). Colour: green.'}};
 async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();skeleton(raw.toUpperCase());
@@ -643,6 +764,7 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
  const nearSS=ssNear(SS,la,lo,rMi,w),ssN=nearSS.length,sector=postcode.slice(0,-2).trim(),sp=PR.sectors[sector],dp=PR.districts[dist.code];
  const st500=ST.filter(p=>Math.abs(p[0]-la)<.01&&hav(la,lo,p[0],p[1])<=0.3107).length,rails=nearest(RA,la,lo,3);
  const gps=nearest(GP,la,lo,3),des=nearest(DE,la,lo,3),scs=nearest(SC,la,lo,5),busN=nearest(ST,la,lo,3),parks=nearest(GS||[],la,lo,5);
+ const n250=(lat,lon)=>nearAll.filter(c=>hav(lat,lon,c[0],c[1])<=0.1553).length;
  const busiest=Object.entries(by).sort((a,b)=>b[1]-a[1])[0],mv=wm.map(m=>mon[m]||0);
  const nearSpots=HS&&HS.spots?HS.spots.map(s=>{const d=hav(la,lo,s[0],s[1]);return d<=rMi?Object.assign([...s],{d}):null}).filter(Boolean).sort((a,b)=>b[2]-a[2]):[];
  const nearCO=CO&&CO.points?CO.points.filter(p=>hav(la,lo,p[0],p[1])<=rMi):[];
@@ -662,8 +784,8 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
  ${schip('flood','Flood','…','police','Rivers and sea flood risk for this postcode.')}
  ${schip('wifi','BB','…','police','Broadband availability.')}
  ${parks[0]?schip('park','Park',parks[0].d.toFixed(1)+' mi','transport','Nearest park or playing field (OS Open Greenspace): '+parks[0][2]+'.'):''}</div>
- <button class="btn ghost" id="share" data-tip="Copy a link to this dashboard so you can share it.">${ic('share',18)}<span class="sl">Share</span></button>
- <button class="btn ghost" id="printb" data-tip="Print a one-page area briefing for this postcode.">${ic('dl',18)}<span class="sl">Print</span></button> <button class="btn ghost" id="watchb" aria-pressed="${watchHas(postcode)}" data-tip="Save this postcode on this device so you can reopen it from the overview. It is not an official alert.">${ic('save',18)}<span class="sl">${watchHas(postcode)?'Saved':'Save area'}</span></button> <button class="btn ghost" id="embedb" data-tip="Get a short snippet to embed this profile on a page you control.">${ic('code',18)}<span class="sl">Embed</span></button> ${cardBtn('cardb')}</div></div>
+ <button class="btn ghost" id="share" type="button" aria-label="Share this dashboard" data-tip="Copy a link to this dashboard so you can share it.">${ic('share',18)}<span class="sl">Share</span></button>
+ <button class="btn ghost" id="printb" type="button" aria-label="Print a one-page area briefing" data-tip="Print a one-page area briefing for this postcode.">${ic('dl',18)}<span class="sl">Print</span></button> <button class="btn ghost" id="watchb" type="button" aria-label="Save this area on this device" aria-pressed="${watchHas(postcode)}" data-tip="Save this postcode on this device so you can reopen it from the overview. It is not an official alert.">${ic('save',18)}<span class="sl">${watchHas(postcode)?'Saved':'Save area'}</span></button> <button class="btn ghost" id="embedb" type="button" aria-label="Get an embed snippet" data-tip="Get a short snippet to embed this profile on a page you control.">${ic('code',18)}<span class="sl">Embed</span></button> ${cardBtn('cardb')}</div></div>
  <aside class="briefing" id="briefing"><h2>Area briefing · ${postcode}</h2>
   <p>${esc(R.admin_ward||'')}${R.admin_ward?', ':''}${esc(ad)} · ${rMi===0.5?'½':rMi} mile radius · ${wLabel(w)} (${mname(wm[0])} – ${mname(wm.at(-1))})</p>
   <ul>
@@ -683,9 +805,12 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
  <p class="muted map-alt"><a href="#maptable">View these crimes as a table</a></p></div>
  <div class="panel"><div class="tabs" role="tablist" aria-label="Area topics">${[['crime','Crime','shield'],['out','Outcomes','gavel'],['health','Health','heart'],['schools','Schools','school'],['transport','Transport','bus'],['homes','Homes','home'],['police','Police','people']].map(([k,n,i],x)=>`<button class="tab" role="tab" id="t-${k}" aria-controls="p-${k}" aria-selected="${!x}" tabindex="${x?-1:0}">${ic(i,17)}${n}</button>`).join('')}</div>
  <section class="tp" role="tabpanel" id="p-crime" aria-labelledby="t-crime">
+  <h2 class="sr-only">Crime</h2>
   <div class="mini">${kpi('shield','Within '+(rMi===0.5?'½':rMi)+' mi',fmt(nearAll.length),busiest?'Most common: '+cn(busiest[0]):'','Crimes recorded within '+rMi+' mile(s) of '+postcode+' over '+wLabel(w)+'.',spark(mv,'#f59e0b'))}
   ${kpi('people',ad+' rate',dist.rate+' / 1,000',badge(dist.rate,S.overview.rate,'county'),'District crimes per 1,000 residents compared with the county.')}
   ${kpi('map','LSOA rate','…','Loading neighbourhood rate','Crimes per 1,000 in this Lower Super Output Area (approx). Band is relative to Cambridgeshire & Peterborough.')}</div>
+  ${explain('These are police-recorded crimes whose anonymised pin falls within '+(rMi===0.5?'½':rMi)+' mile of '+esc(postcode)+' in '+wLabel(w)+'. Pins are snapped to a public location, so a count is not a precise address tally.')}
+  <div id="lsoa-explain"></div>
   <div class="card">${typeTable(by,nearAll.length||1,'near')}</div>
   <div class="card"><div class="row"><h3>Month by month</h3><span class="ctl">${csvBtn('nearmonthly',[['Month','Crimes within radius'],...wm.map(m=>[m,mon[m]||0])],'the monthly counts')}${tipI('Crimes recorded each month within the chosen radius of this postcode.')}</span></div><div style="height:220px"><canvas id="trend"></canvas></div></div>
   <div class="card"><div class="row"><h3>Top crime types over time</h3>${tipI('The four most common crime types within the radius, month by month.')}</div><div style="height:220px"><canvas id="typetrend" aria-label="Crime type trends"></canvas></div></div>
@@ -696,6 +821,7 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
   ${crimeTable(near,cats,wm)}
   <div class="card" id="nearby"><p class="muted">Looking for nearby neighbourhoods…</p></div></section>
  <section class="tp" role="tabpanel" id="p-out" aria-labelledby="t-out" hidden>
+  <h2 class="sr-only">Outcomes</h2>
   <div class="mini">${kpi('check','Solve rate near you',solve==null?'–':solve.toFixed(1)+'%',`${fmt(pos)} of ${fmt(nonAsb)} crimes ${solve==null?'':badge(solve,cs,'county',false)}`,'Share of crimes within the chosen radius (excluding anti-social behaviour, which has no outcomes) where someone was charged or summonsed, or got an out-of-court resolution such as a caution or community resolution. Recent crimes may still be under investigation.')}
   ${kpi('hand','Stop and searches',fmt(ssN),'Within radius, '+wLabel(w),'Police stop and searches recorded with a location within the chosen radius and time window.')}
   ${kpi('gavel','Charged / resolved',fmt(oc[0]+oc[1]),((nonAsb?(oc[0]+oc[1])/nonAsb*100:0).toFixed(0))+'% of non-ASB','Charged/summonsed plus out-of-court resolutions within the radius.')}
@@ -704,24 +830,33 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
   <div class="card"><div class="row"><h3>How outcomes move month by month</h3>${tipI('For crimes within the chosen radius. ASB has no outcome and is left out of these lines. “Charged / resolved” combines charged/summonsed and out-of-court resolutions.')}</div>
   <div style="height:240px"><canvas id="outtrend" aria-label="Monthly outcome trends"></canvas></div></div>
   ${outcomeFunnel(oc)}
+  ${explain('“Charged / resolved” combines a charge or summons with out-of-court results such as a caution. “No suspect” means the case was closed without identifying someone. Figures use the latest recorded outcome and can change.')}
   <div class="card">${outTable(oc,'nearout')}</div><p class="muted">District solve rate ${ds.toFixed(1)}% · county ${cs.toFixed(1)}%. Recent months often show more cases still under investigation.</p>
   ${ssBlock(nearSS,w)}</section>
  <section class="tp" role="tabpanel" id="p-health" aria-labelledby="t-health" hidden>
+  <h2 class="sr-only">Health</h2>
   <div class="card"><div class="row"><h3>Nearest GP surgeries</h3>${tipI('Active GP practices from the NHS Organisation Data Service, by straight-line distance.')}</div>${nl(gps,'gp',x=>x[3])}</div>
   <div class="card"><div class="row"><h3>Nearest dentists</h3>${tipI('Active dental practices from the NHS Organisation Data Service. Check with the practice whether it takes new NHS patients.')}</div>${nl(des,'dent',x=>x[3])}</div></section>
  <section class="tp" role="tabpanel" id="p-schools" aria-labelledby="t-schools" hidden>
-  <div class="card"><div class="row"><h3>Nearest schools</h3>${tipI('Open schools from DfE Get Information about Schools. The grade is the latest Ofsted overall effectiveness, from a graded inspection or an ungraded check that confirmed the grade. Single-word grades stopped in September 2024.')}</div>${nl(scs,'sch',x=>esc(x[3])+' · '+esc(x[4])+(x[5]?`<br><span class="badge ${/Outstanding|Good/.test(x[5])?'good':/Inadequate|Requires/.test(x[5])?'bad':'neu'}">Ofsted: ${esc(x[5])}</span> ${esc(x[6]||'')}`:'<br><span class="badge neu">No Ofsted grade published</span>'))}</div></section>
+  <h2 class="sr-only">Schools</h2>
+  <div class="card"><div class="row"><h3>Nearest schools</h3>${tipI('Open schools from DfE Get Information about Schools. The grade is the latest Ofsted overall effectiveness, from a graded inspection or an ungraded check that confirmed the grade. Single-word grades stopped in September 2024. The 250m crime count uses the same time window as the dashboard. Pins are snapped to a public location, so this is not a tally of incidents on the school site.')}</div>${nl(scs,'sch',x=>esc(x[3])+' · '+esc(x[4])+(x[5]?`<br><span class="badge ${/Outstanding|Good/.test(x[5])?'good':/Inadequate|Requires/.test(x[5])?'bad':'neu'}">Ofsted: ${esc(x[5])}</span> ${esc(x[6]||'')}`:'<br><span class="badge neu">No Ofsted grade published</span>')+`<br><span class="muted">${fmt(n250(x[0],x[1]))} recorded crimes within 250m</span>`)}<p class="muted">Crime pins are snapped to a public location, so a count within 250m of a school is not a count of incidents on the school site. The time window matches the dashboard.</p></div></section>
  <section class="tp" role="tabpanel" id="p-transport" aria-labelledby="t-transport" hidden>
+  <h2 class="sr-only">Transport</h2>
   ${CO?collisionSummary(coRow,CO,{title:'Injury collisions within the radius',extra:'Turn on the Collisions map layer to see the points. Calendar years 2024 and 2025.'}):''}
+  ${CO&&coRow?explain('These are personal-injury collisions reported to the police in calendar years 2024 and 2025 — not the same window as the crime figures, and damage-only bumps are not included.'):''}
   <div class="mini">${kpi('bus','Bus stops within 500m',st500,'From the NaPTAN stop register','Active bus stops within 500 metres of the postcode.')}${kpi('train','Nearest station',esc(rails[0][2]),rails[0].d.toFixed(1)+' miles','Nearest National Rail station by straight-line distance.')}</div>
-  <div class="card"><div class="row"><h3>Nearest rail stations</h3></div>${nl(rails,'rail',()=> 'National Rail')}</div>
+  <div class="card"><div class="row"><h3>Nearest rail stations</h3>${tipI('National Rail stations by straight-line distance. The 250m crime count uses the same time window as the dashboard. Pins are snapped to a public location, so this is not a tally of incidents inside the station.')}</div>${nl(rails,'rail',x=>'National Rail<br><span class="muted">'+fmt(n250(x[0],x[1]))+' recorded crimes within 250m</span>')}<p class="muted">Crime pins are snapped to a public location, so a count within 250m of a station is not a count of incidents on the station site.</p></div>
   <div class="card"><div class="row"><h3>Nearest bus stops</h3></div>${nl(busN,'bus',()=> 'Bus stop')}</div></section>
  <section class="tp" role="tabpanel" id="p-homes" aria-labelledby="t-homes" hidden>
+  <h2 class="sr-only">Homes</h2>
   <div class="mini">${kpi('home','Median price, '+sector,sp?'£'+fmt(sp[0]):'–',sp?`${fmt(sp[1])} sales ${badge(sp[0],dp[0],ad,false).replace(/bad|good/,'neu')}`:'No sales recorded','Median price of standard residential sales in this postcode sector, HM Land Registry Price Paid Data.')}
   ${kpi('chart',ad+' median','£'+fmt(dp[0]),fmt(dp[1])+' sales','District median for comparison.')}</div>
-  <p class="muted">Sales from ${PR.from.slice(0,7)} to ${PR.to.slice(0,7)}. Standard residential sales only; excludes repossessions and transfers.</p></section>
+  <p class="muted">Sales from ${PR.from.slice(0,7)} to ${PR.to.slice(0,7)}. Standard residential sales only; excludes repossessions and transfers.</p>
+  <div id="ctxhost"></div></section>
  <section class="tp" role="tabpanel" id="p-police" aria-labelledby="t-police" hidden>
+  <h2 class="sr-only">Police</h2>
   <div class="card"><div class="row"><h3>Area context</h3>${tipI("Deprivation, flood risk and broadband for this postcode or its LSOA.")}</div><div id="areax"><p class="muted">Loading…</p></div></div>
+  <div id="ctxhost"></div>
   <div class="card" id="nbhood"><p class="muted">Loading neighbourhood team…</p></div>
   <div class="card"><div class="row"><h3>Official local messages</h3></div><p>StreetLens is not an alerting service. For official messages from Cambridgeshire Constabulary, including community updates, use <a href="https://www.ecops.org.uk/" target="_blank" rel="noopener">eCops</a> (the force’s Neighbourhood Alert scheme).</p></div>
   <p class="muted"><a href="method.html">How to read these figures</a></p></section>
@@ -755,6 +890,9 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
     el.querySelector('.sub').innerHTML=`<span class="badge ${row.band==='Low'?'good':row.band==='High'?'bad':'neu'}">${row.band} for Cambs</span> · ${fmt(row.n)} crimes · pop ${fmt(row.pop)}${pct}`;
     el.querySelector('.lab').innerHTML=ic('map')+'LSOA rate'+tipI('Approximate rate for this LSOA (2021). Crimes are assigned to the nearest LSOA centroid because police anonymise locations. Band is Low/Medium/High among Cambridgeshire & Peterborough LSOAs. “Lower recorded rate than X%” is the share of those LSOAs with a higher approximate rate. It is not a safety score and not an official police statistic. Centres can look high because visitors are not in the resident count.')}
    else if(el){el.querySelector('.val').textContent='–';el.querySelector('.sub').textContent='No LSOA estimate'}
+   const lx=$('#lsoa-explain');
+   if(lx&&row&&row.rate!=null) lx.outerHTML=explain('The neighbourhood (LSOA) figure is an approximate rate: each published crime is assigned to the nearest 2021 LSOA centroid because police anonymise locations. A band of '+esc(row.band||'Medium')+' is relative to Cambridgeshire & Peterborough only, and it is not a safety score.');
+   fillContextHost(dist,false,code);
    const bp=$('#brief-pct'); if(bp&&row&&row.pct!=null) bp.textContent='Lower recorded rate than '+row.pct+'% of Cambridgeshire & Peterborough neighbourhoods (approximate LSOA rate '+row.rate+' per 1,000).';
    const nb=$('#nearby');
    if(nb&&row){const list=nearbyLsoa(lr,code,la,lo);
@@ -763,6 +901,7 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
     document.querySelectorAll('.near-go').forEach(b=>b.onclick=async()=>{const lab=b.textContent;b.textContent='Looking up…';try{const r=await fetch(`https://api.postcodes.io/postcodes?lon=${b.dataset.lon}&lat=${b.dataset.lat}&limit=5`).then(x=>x.json());const hit=(r.result||[]).find(p=>S.districts.some(d=>d.name===p.admin_district))||(r.result&&r.result[0]); if(hit) go('pc='+encodeURIComponent(hit.postcode)); else b.textContent='No postcode found'}catch{b.textContent=lab}});}
    else if(nb) nb.innerHTML='';
   }catch{}
+  if($('#ctxhost')) fillContextHost(dist,false,(R.codes&&(R.codes.lsoa21||R.codes.lsoa))||'');
 
   const floodTxt=ex.fb?bandLabel(ex.fb):'None mapped';
   const bbTxt=ex.gig==null?'–':(ex.gig+'% gigabit')+(ex.secFallback?' (sector)':'');
@@ -780,7 +919,7 @@ async function dashboard(raw){const pcq=raw.replace(/\s+/g,'').toUpperCase();ske
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
  const area=L.circle([la,lo],{radius:rMi*1609.34,color:'#0f766e',weight:2,fillOpacity:.04}).addTo(map);
  L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:34px;height:34px;background:#14213d">${ic('pin',18)}</div>`,iconSize:[34,34],iconAnchor:[17,17]}),zIndexOffset:1000,keyboard:true,title:postcode}).addTo(map).bindPopup('<b>'+postcode+'</b>');
- const clus=c=>L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50,iconCreateFunction:g=>{const n=g.getChildCount(),s=n<10?30:n<100?38:46;return L.divIcon({className:'',html:`<div class="cl" style="width:${s}px;height:${s}px;background:${c}">${n}</div>`,iconSize:[s,s]})}});
+ const clus=c=>L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50,iconCreateFunction:g=>{const n=g.getChildCount(),s=n<10?44:n<100?48:54;return L.divIcon({className:'',html:`<div class="cl" style="width:${s}px;height:${s}px;background:${c}">${n}</div>`,iconSize:[s,s]})}});
  const pinI=(k,s=28)=>L.divIcon({className:'',html:`<div class="pin" style="width:${s}px;height:${s}px;background:${LAYERS[k].c}">${ic(LAYERS[k].i,s*.55|0)}</div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});
  const crimeL=clus(LAYERS.crimes.c);near.forEach(p=>crimeL.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}).bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br><i>${S.outcomeBuckets[p[4]]}</i>`)));
  const within=(arr,mi)=>arr.filter(p=>hav(la,lo,p[0],p[1])<=mi);

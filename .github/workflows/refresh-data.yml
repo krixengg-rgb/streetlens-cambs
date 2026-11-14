@@ -86,6 +86,9 @@ jobs:
           python3 scripts/enrich_lsoa_and_feeds.py
           python3 scripts/build_hotspots.py || echo "hotspots refresh skipped/failed (non-fatal)"
           python3 scripts/build_collisions.py || echo "collisions refresh skipped/failed (non-fatal)"
+          python3 scripts/enrich_lsoa_trends.py || echo "lsoa trends skipped/failed (non-fatal)"
+          python3 scripts/build_area_context.py || echo "area context refresh skipped/failed (non-fatal)"
+          python3 scripts/build_home_extras.py || echo "home extras skipped/failed (non-fatal)"
           python3 scripts/sanity_check.py /tmp/prev-data
 
       - name: Restore data on failure

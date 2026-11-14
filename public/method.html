@@ -8,7 +8,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.ico" sizes="any">
-<link rel="stylesheet" href="style.css?v=20">
+<link rel="stylesheet" href="style.css?v=21">
 <script>(()=>{const t=localStorage.getItem('sl-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t})()</script>
 <style>
 .method{max-width:760px;margin:0 auto;padding:28px 20px 64px}
@@ -93,19 +93,34 @@
 <p>Each row is a street or landmark the police published as the anonymised snap point for one or more crimes (usually labelled “On or near …”). It is not the exact address of an offence. Two rows can share a name when the force uses the same label at different points, such as two parking areas. These 12-month totals do not follow the 3- or 6-month dashboard window.</p>
 
 <h2>District and neighbourhood league</h2>
-<p>The league page lets you sort districts and LSOAs by recorded rate, count, year-on-year change and, for neighbourhoods, the percentile rank. The neighbourhood rank is not a safety score. Town centres often sit high because rates use resident population. LSOA rates remain approximate (nearest-centroid assignment).</p>
+<p>A trend sparkline on each neighbourhood row shows how assigned monthly counts moved over the latest 12 months. It is a shape from the same nearest-centroid assignment as the rate, not a second official total, and the table cannot be sorted by the sparkline. The league page lets you sort districts and LSOAs by recorded rate, count, year-on-year change and, for neighbourhoods, the percentile rank. The neighbourhood rank is not a safety score. Town centres often sit high because rates use resident population. LSOA rates remain approximate (nearest-centroid assignment).</p>
 
 <h2>Road collisions</h2>
 <p>Injury collisions come from the Department for Transport’s STATS19 road safety data for the calendar years 2024 and 2025. Only personal-injury collisions on public roads that were reported to the police are included; damage-only incidents are not. Locations are as reported, not police crime snap points. Severity is as recorded — reporting practice can affect the serious/slight split. These years are not the same window as the monthly crime file.</p>
 
 <h2>Neighbourhood teams</h2>
-<p>Team names, 101 or email contacts, published priorities and named officers come from the data.police.uk neighbourhood API for the force area that contains the postcode. StreetLens does not edit this content. It changes when the force updates it. For a non-emergency report, use 101 or the force website; call 999 in an emergency.</p>
+<p>Team names, 101 or email contacts, published priorities and named officers come from the data.police.uk neighbourhood API for the force area that contains the postcode. Upcoming events are listed from the same API’s events feed. StreetLens does not edit this content. It changes when the force updates it. For a non-emergency report, use 101 or the force website; call 999 in an emergency.</p>
 
 <h2>Summary card</h2>
 <p>The Card button builds a PNG on your device from the figures already on screen so you can save or share a snapshot. It is not an official certificate or a safety score.</p>
 
+<h2>Neighbourhood events</h2>
+<p>Upcoming beat meetings, surgeries and drop-ins are fetched live from the data.police.uk neighbourhood events API for the team that covers the postcode. Dates are shown in Europe/London time, as the force published them. A registration link is shown only when the force included a web address in the event details. The list can be empty even when meetings exist, if the force has not published them on that API.</p>
+
+<h2>Households and council tax</h2>
+<p>The household card is background about who lived in the neighbourhood at Census 2021 (tenure and a short age profile, from ONS tables TS054 and TS007A via Nomis) and how many domestic properties sat in each council tax band at 31 March 2026 (Valuation Office Agency, CTSOP1.1). It is not a judgement and not a safety score. Census figures are from 21 March 2021 and will have changed. Council tax bands in England rest on 1991 values. Band counts are rounded to the nearest 10 in the source, and some small counts are suppressed.</p>
+
+<h2>Crime near schools and stations</h2>
+<p>On a postcode page, each nearby school and rail station shows how many recorded crimes in the chosen time window have an anonymised pin within 250 metres (about 0.16 miles) of that site. Pins are snapped to a public location, so this is not a count of incidents on the school or station site.</p>
+
+<h2>Between two postcodes</h2>
+<p>When both sides of the compare page have a Cambridgeshire or Peterborough postcode, StreetLens counts recorded crimes whose pin falls within 250 metres of the straight line between the two postcode centroids. This is not a driving, walking or public-transport route, and it is not a commute time. The same time window as the compare page applies, and pins are anonymised in the usual way.</p>
+
+<h2>Explaining a figure</h2>
+<p>Short plain-English notes sit under selected totals, rates, solve figures, neighbourhood rates, outcome funnels and collision counts. They restate what the number includes and what it does not. They are not a second dataset.</p>
+
 <h2>Licences</h2>
-<p>Most sources are under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>. House prices also carry: Contains HM Land Registry data © Crown copyright and database right 2026. Road collisions: Department for Transport Road Safety Data (STATS19). Neighbourhood teams and priorities: data.police.uk. Location names on the hotspot list are from data.police.uk street-level crime. Cache version: v20.</p>
+<p>Most sources are under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>. House prices also carry: Contains HM Land Registry data © Crown copyright and database right 2026. Road collisions: Department for Transport Road Safety Data (STATS19). Neighbourhood teams, events and priorities: data.police.uk. Location names on the hotspot list are from data.police.uk street-level crime. Census 2021: Office for National Statistics via Nomis. Council tax stock: Valuation Office Agency CTSOP1.1. Cache version: v21.</p>
 </main>
 <footer class="foot"><p><a href="./">StreetLens</a> · independent prototype</p></footer>
 <script>

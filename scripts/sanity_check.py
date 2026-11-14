@@ -154,6 +154,40 @@ if co not in (None, "__EMPTY__") and isinstance(co, dict):
 else:
     errs.append("collisions.json missing or empty")
 
+# Stage H: census/CT context, slim homepage payload, LSOA monthly sparks
+cx = load(NEW, "context.json")
+if cx not in (None, "__EMPTY__") and isinstance(cx, dict):
+    lsoa = cx.get("lsoa") or {}
+    districts = cx.get("districts") or {}
+    if len(lsoa) < 500:
+        errs.append(f"context.json LSOA count {len(lsoa)} < 500")
+    taxed = sum(1 for v in lsoa.values() if isinstance(v, dict) and v.get("ctN"))
+    if taxed < 500:
+        errs.append(f"context.json tax rows {taxed} < 500")
+    if len(districts) != 6:
+        errs.append(f"context.json districts {len(districts)} != 6")
+else:
+    errs.append("context.json missing or empty")
+
+he = load(NEW, "home_extras.json")
+if he not in (None, "__EMPTY__") and isinstance(he, dict):
+    spots = (he.get("hotspots") or {}).get("spots") or []
+    cov = (he.get("collisions") or {}).get("overview") or {}
+    if len(spots) < 5:
+        errs.append(f"home_extras hotspots {len(spots)} < 5")
+    if not cov.get("n"):
+        errs.append("home_extras collisions overview missing n")
+else:
+    errs.append("home_extras.json missing or empty")
+
+lr = load(NEW, "lsoa_rates.json")
+if lr not in (None, "__EMPTY__") and isinstance(lr, dict) and isinstance(lr.get("lsoa"), dict):
+    mv_ok = sum(1 for v in lr["lsoa"].values() if isinstance(v, dict) and isinstance(v.get("mv"), list) and len(v["mv"]) == 12)
+    if mv_ok < 500:
+        errs.append(f"lsoa_rates mv present for {mv_ok} rows, expected >= 500")
+else:
+    errs.append("lsoa_rates.json missing for mv check")
+
 if errs:
     for e in errs:
         print("SANITY FAIL:", e, file=sys.stderr)
