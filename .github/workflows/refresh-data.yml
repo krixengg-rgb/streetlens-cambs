@@ -84,6 +84,8 @@ jobs:
           python3 scripts/refresh_area_extras.py || echo "area extras refresh skipped/failed (non-fatal)"
           python3 scripts/build_tiles_and_lsoa.py || echo "tiles/lsoa rebuild skipped/failed (non-fatal)"
           python3 scripts/enrich_lsoa_and_feeds.py
+          python3 scripts/build_hotspots.py || echo "hotspots refresh skipped/failed (non-fatal)"
+          python3 scripts/build_collisions.py || echo "collisions refresh skipped/failed (non-fatal)"
           python3 scripts/sanity_check.py /tmp/prev-data
 
       - name: Restore data on failure

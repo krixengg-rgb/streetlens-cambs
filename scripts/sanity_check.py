@@ -132,6 +132,28 @@ for name in ["county.xml", "index.html"] + [s + ".xml" for s in slugs]:
     if not os.path.exists(p) or os.path.getsize(p) < 40:
         errs.append(f"feed missing or tiny: {name}")
 
+# Stage G: street hotspots and STATS19 collisions
+hs = load(NEW, "hotspots.json")
+if hs not in (None, "__EMPTY__") and isinstance(hs, dict):
+    spots = hs.get("spots") or []
+    if not (1000 <= len(spots) <= 50000):
+        errs.append(f"hotspots.json count {len(spots)} outside [1000,50000]")
+    elif hs.get("meta") and hs["meta"].get("crimes") and hs["meta"]["crimes"] < 40000:
+        errs.append(f"hotspots crimes {hs['meta']['crimes']} too low")
+else:
+    errs.append("hotspots.json missing or empty")
+
+co = load(NEW, "collisions.json")
+if co not in (None, "__EMPTY__") and isinstance(co, dict):
+    pts = co.get("points") or []
+    if not (500 <= len(pts) <= 20000):
+        errs.append(f"collisions.json count {len(pts)} outside [500,20000]")
+    cov = co.get("overview") or {}
+    if (cov.get("fatal") or 0) + (cov.get("serious") or 0) + (cov.get("slight") or 0) != cov.get("n", -1):
+        errs.append("collisions overview severity counts do not sum to n")
+else:
+    errs.append("collisions.json missing or empty")
+
 if errs:
     for e in errs:
         print("SANITY FAIL:", e, file=sys.stderr)

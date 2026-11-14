@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>How to read this site — StreetLens</title>
 <meta name="description" content="How StreetLens builds rates, maps and comparisons from open UK data, and what the figures can and cannot tell you.">
 <link rel="canonical" href="https://krixengg-rgb.github.io/streetlens-cambs/public/method.html">
@@ -8,7 +8,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.ico" sizes="any">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=20">
 <script>(()=>{const t=localStorage.getItem('sl-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t})()</script>
 <style>
 .method{max-width:760px;margin:0 auto;padding:28px 20px 64px}
@@ -82,8 +82,30 @@
 <h2>Lag and updates</h2>
 <p>Police data is usually published about two months after a month ends. StreetLens checks for a new month every Wednesday and refreshes when one appears.</p>
 
+
+<h2>Season and type mix</h2>
+<p>The “usual pattern” chart shows each month as a percentage of that area’s own monthly average (100 is a typical month). A county line, when shown, uses the same months for Cambridgeshire &amp; Peterborough. The type-mix chart compares the <em>share</em> of recorded crimes by type with the county mix. It is not a rate per resident: a higher share of shoplifting does not on its own mean a higher rate.</p>
+
+<h2>What happens after a report</h2>
+<p>The funnel starts with all recorded crimes in the view, then the share that have an outcome category (anti-social behaviour is published without one), then the share charged, summonsed or resolved out of court — the same group used in the solve rate. The list below is the latest recorded outcome, not a courtroom result. Newer months still have many cases under investigation.</p>
+
+<h2>Most recorded locations</h2>
+<p>Each row is a street or landmark the police published as the anonymised snap point for one or more crimes (usually labelled “On or near …”). It is not the exact address of an offence. Two rows can share a name when the force uses the same label at different points, such as two parking areas. These 12-month totals do not follow the 3- or 6-month dashboard window.</p>
+
+<h2>District and neighbourhood league</h2>
+<p>The league page lets you sort districts and LSOAs by recorded rate, count, year-on-year change and, for neighbourhoods, the percentile rank. The neighbourhood rank is not a safety score. Town centres often sit high because rates use resident population. LSOA rates remain approximate (nearest-centroid assignment).</p>
+
+<h2>Road collisions</h2>
+<p>Injury collisions come from the Department for Transport’s STATS19 road safety data for the calendar years 2024 and 2025. Only personal-injury collisions on public roads that were reported to the police are included; damage-only incidents are not. Locations are as reported, not police crime snap points. Severity is as recorded — reporting practice can affect the serious/slight split. These years are not the same window as the monthly crime file.</p>
+
+<h2>Neighbourhood teams</h2>
+<p>Team names, 101 or email contacts, published priorities and named officers come from the data.police.uk neighbourhood API for the force area that contains the postcode. StreetLens does not edit this content. It changes when the force updates it. For a non-emergency report, use 101 or the force website; call 999 in an emergency.</p>
+
+<h2>Summary card</h2>
+<p>The Card button builds a PNG on your device from the figures already on screen so you can save or share a snapshot. It is not an official certificate or a safety score.</p>
+
 <h2>Licences</h2>
-<p>Most sources are under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>. House prices also carry: Contains HM Land Registry data © Crown copyright and database right 2026.</p>
+<p>Most sources are under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>. House prices also carry: Contains HM Land Registry data © Crown copyright and database right 2026. Road collisions: Department for Transport Road Safety Data (STATS19). Neighbourhood teams and priorities: data.police.uk. Location names on the hotspot list are from data.police.uk street-level crime. Cache version: v20.</p>
 </main>
 <footer class="foot"><p><a href="./">StreetLens</a> · independent prototype</p></footer>
 <script>

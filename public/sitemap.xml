@@ -17,4 +17,5 @@
 <url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/districts/peterborough.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
   <url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/index.html</loc></url>
   <url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/county.xml</loc></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/?view=league</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
 </urlset>
