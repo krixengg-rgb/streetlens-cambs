@@ -147,7 +147,8 @@ async function loadNeighbourhood(la,lo,el){try{
    return `<li><b>${esc(p.name||'Officer')}</b> <span class="muted">${esc(p.rank||'')}</span>${bio?`<div class="muted">${esc(bio)}${bio.length>=200?'…':''}</div>`:''}</li>`;
  }).join('');
 
- const evHtml=(events||[]).filter(e=>e&&e.start_date).slice().sort((a,b)=>String(a.start_date).localeCompare(String(b.start_date))).map(e=>{
+ const now=new Date();
+ const evHtml=(events||[]).filter(e=>e&&e.start_date&&new Date(e.end_date||e.start_date)>=now).slice().sort((a,b)=>String(a.start_date).localeCompare(String(b.start_date))).map(e=>{
    const start=new Date(e.start_date), end=e.end_date?new Date(e.end_date):null;
    if(isNaN(start)) return '';
    const when=start.toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/London'});
