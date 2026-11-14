@@ -123,10 +123,10 @@ async function loadNeighbourhood(la,lo,el){try{
  const loc=await fetch(`https://data.police.uk/api/locate-neighbourhood?q=${la},${lo}`).then(r=>r.ok?r.json():null);
  if(!loc||!loc.force||!loc.neighbourhood){el.innerHTML='<p class="muted">No neighbourhood team found for this point.</p>';return}
  const [info,pri,people,events]=await Promise.all([
-  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}`).then(r=>r.ok?r.json():null),
-  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/priorities`).then(r=>r.ok?r.json():[]),
-  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/people`).then(r=>r.ok?r.json():[]),
-  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/events`).then(r=>r.ok?r.json():[])
+  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}`).then(r=>r.ok?r.json():null).catch(()=>null),
+  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/priorities`).then(r=>r.ok?r.json():[]).catch(()=>[]),
+  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/people`).then(r=>r.ok?r.json():[]).catch(()=>[]),
+  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/events`).then(r=>r.ok?r.json():[]).catch(()=>[])
  ]);
  const name=(info&&info.name)||loc.neighbourhood.replace(/_/g,' ');
  const url=`https://www.police.uk/pu/your-area/${loc.force}/${loc.neighbourhood.toLowerCase().replace(/_/g,'-')}/`;
@@ -346,7 +346,8 @@ async function fillContextHost(dist,isAll,lsoaCode){
     if(lsoaCode&&CX.lsoa&&CX.lsoa[lsoaCode]){row=CX.lsoa[lsoaCode]; title='Households and council tax in this neighbourhood'}
     else if(isAll){row=countyContext(CX); title='Households and council tax across the county'}
     else if(dist&&CX.districts&&CX.districts[dist.code]){row=CX.districts[dist.code]; title='Households and council tax in '+dist.name}
-    const html=contextCard(row,title);
+    let html=contextCard(row,title);
+    if(html&&(isAll||(dist&&!lsoaCode))) html=`<section class="sec context-sec"><h2 class="sr-only">${title||'Households and council tax'}</h2>${html}</section>`;
     hosts.forEach(h=>{if(html)h.outerHTML=html; else h.innerHTML=''});
   }catch{hosts.forEach(h=>h.innerHTML='')}
 }
@@ -571,7 +572,7 @@ const OCOL=['#0f766e','#14b8a6','#94a3b8','#f59e0b','#6366f1','#a855f7','#cbd5e1
 function outTable(oc,id){const t=oc.reduce((a,b)=>a+b,0)||1;
  return `<div class="row"><h3>Outcomes</h3><span class="ctl">${csvBtn(id,[['Outcome','Crimes','Share %'],...S.outcomeBuckets.map((b,i)=>[b,oc[i],(oc[i]/t*100).toFixed(1)])],'the outcome breakdown')}${tipI('Latest police outcome for each crime, grouped. Charged or summonsed and out-of-court resolutions count towards the solve rate.')}</span></div>
  <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin:4px 0 10px" role="img" aria-label="Outcome shares">${oc.map((v,i)=>`<i style="width:${v/t*100}%;background:${OCOL[i]}"></i>`).join('')}</div>
- <table><tbody>${S.outcomeBuckets.map((b,i)=>`<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${OCOL[i]};margin-right:8px"></span>${b}</td><td class="n">${fmt(oc[i])}</td><td class="n">${(oc[i]/t*100).toFixed(1)}%</td></tr>`).join('')}</tbody></table>`}
+ <table><thead><tr><th scope="col">Outcome</th><th class="n" scope="col">Crimes</th><th class="n" scope="col">Share</th></tr></thead><tbody>${S.outcomeBuckets.map((b,i)=>`<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${OCOL[i]};margin-right:8px"></span>${b}</td><td class="n">${fmt(oc[i])}</td><td class="n">${(oc[i]/t*100).toFixed(1)}%</td></tr>`).join('')}</tbody></table>`}
 const SSOB=['Arrest','Summons / charged','Out-of-court resolution','No further action','Other'];
 function ssNear(SS,la,lo,rMi,w){return SS.filter(p=>hav(la,lo,p[0],p[1])<=rMi&&(w==null||p[2]>=S.months.length-w))}
 function ssBlock(nearSS,w){const months=wMonths(w||12); const mon=months.map(()=>0), oc=[0,0,0,0,0], off=S.months.length-months.length;
