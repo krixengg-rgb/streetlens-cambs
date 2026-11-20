@@ -258,3 +258,6 @@ table.sortable th[aria-sort=descending] button::after{content:" ▼";font-size:1
 
 .simple-geo{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 14px}
 .simple-geo .err{margin:0;font-size:14px}
+
+.simple-view .chip,.simple-geo .chip{border-color:var(--line);background:var(--card,#fff);color:var(--ink)}
+.simple-view .chip:hover,.simple-geo .chip:hover{background:var(--bg,#f4f1ea)}
