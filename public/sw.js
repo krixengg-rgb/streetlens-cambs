@@ -1,10 +1,10 @@
 /* StreetLens service worker — cache the shell so the app can open offline. Live data still prefers the network. */
-const CACHE = 'streetlens-v24';
+const CACHE = 'streetlens-v25';
 const PRECACHE = [
   './',
   './index.html',
-  './style.css?v=24',
-  './app.js?v=24',
+  './style.css?v=25',
+  './app.js?v=25',
   './method.html',
   './favicon.svg',
   './manifest.webmanifest',

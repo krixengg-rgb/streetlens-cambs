@@ -870,7 +870,7 @@ async function fillSimpleOverviewMap(dist){
       extents.forEach(({d,e})=>{
         if(!e)return;
         b.push([e.lat,e.lon]);
-        L.marker([e.lat,e.lon],{icon:L.divIcon({className:'',html:`<div class="pin pin-dist" style="width:44px;height:44px;background:#14213d">${ic('pin',20)}</div>`,iconSize:[44,44],iconAnchor:[22,22]}),title:d.name,keyboard:true,alt:d.name+' — open district overview'}).addTo(map)
+        L.marker([e.lat,e.lon],{icon:L.divIcon({className:'',html:`<div class="pin pin-dist" style="width:44px;height:44px;background:#14213d">${ic('pin',20)}</div>`,iconSize:[44,44],iconAnchor:[22,22]}),title:d.name,keyboard:false,alt:d.name+' — open district overview'}).addTo(map)
           .bindPopup(`<b>${esc(d.name)}</b><br>${d.rate} recorded crimes per 1,000 residents<br><a href="?${dq(d)}" data-q="${dq(d)}">Open ${esc(d.name)}</a>`);
       });
       if(b.length) map.fitBounds(b,{padding:[28,28],maxZoom:10});
