@@ -188,6 +188,26 @@ if lr not in (None, "__EMPTY__") and isinstance(lr, dict) and isinstance(lr.get(
 else:
     errs.append("lsoa_rates.json missing for mv check")
 
+# Stage J: previous 12-month tiles for postcode year-on-year
+pt = load(NEW, "prev_tiles/meta.json")
+if pt not in (None, "__EMPTY__") and isinstance(pt, dict):
+    total = pt.get("total") or 0
+    months_p = pt.get("months") or []
+    tiles = pt.get("tiles") or []
+    if total < 40000:
+        errs.append(f"prev_tiles total {total} < 40000")
+    if len(months_p) != 12:
+        errs.append(f"prev_tiles months {len(months_p)} != 12")
+    if len(tiles) < 50:
+        errs.append(f"prev_tiles tile count {len(tiles)} < 50")
+    ma = summary.get("monthsAll") or []
+    cur = summary.get("months") or []
+    exp = [m for m in ma if m not in cur][-12:]
+    if exp and list(months_p) != list(exp):
+        errs.append(f"prev_tiles months {months_p[0] if months_p else '?'}→{months_p[-1] if months_p else '?'} != previous window {exp[0] if exp else '?'}→{exp[-1] if exp else '?'}")
+else:
+    errs.append("prev_tiles/meta.json missing or empty")
+
 if errs:
     for e in errs:
         print("SANITY FAIL:", e, file=sys.stderr)

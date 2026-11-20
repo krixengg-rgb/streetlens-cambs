@@ -133,6 +133,33 @@ async function loadPointsInBBox(minLa,maxLa,minLo,maxLo){
   return pts;
 }
 
+async function loadPrevPointsNear(la,lo,rMi){
+  const meta=await fetch('data/prev_tiles/meta.json').then(r=>r.ok?r.json():null).catch(()=>null);
+  if(!meta||!meta.cell) return [];
+  const cell=meta.cell, pad=rMi/69+cell;
+  const i0=Math.floor((la-pad)/cell), i1=Math.floor((la+pad)/cell);
+  const j0=Math.floor((lo-pad)/cell), j1=Math.floor((lo+pad)/cell);
+  const want=new Set();
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++) want.add(i+'_'+j);
+  const files=[...want].filter(k=>(meta.tiles||[]).some(([ti,tj])=>ti+'_'+tj===k));
+  const chunks=await Promise.all(files.map(k=>fetch('data/prev_tiles/'+k+'.json').then(r=>r.ok?r.json():[]).catch(()=>[])));
+  const out=[]; for(const arr of chunks) for(const p of arr){if(hav(la,lo,p[0],p[1])<=rMi) out.push(p)}
+  return {pts:out, months:meta.months||[]};
+}
+async function fetchJSON(url, fallback, tries=3){
+  let last=null;
+  for(let i=0;i<tries;i++){
+    try{
+      const r=await fetch(url,{cache:'no-store'});
+      if(r.ok) return await r.json();
+      last=new Error('HTTP '+r.status);
+    }catch(e){last=e}
+    await new Promise(res=>setTimeout(res, 400*Math.pow(2,i)));
+  }
+  return fallback;
+}
+function afterPaint(fn){requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(fn,0)))}
+
 async function loadAreaExtras(postcode,lsoa){const pc=postcode.replace(/\s+/g,'').toUpperCase(),sec=pc.length>=5?pc.slice(0,-2):pc;
  const [imd,fl,bb]=await Promise.all(['imd','flood','broadband'].map(n=>lj(n).catch(()=>null)));
  const im=imd&&imd.lsoa&&imd.lsoa[lsoa];
@@ -140,15 +167,19 @@ async function loadAreaExtras(postcode,lsoa){const pc=postcode.replace(/\s+/g,''
  let gig=null,sfbb=null; if(bb){const hit=bb.pc&&bb.pc[pc]; const s=hit||(bb.sector&&bb.sector[sec]); if(s){gig=s[0];sfbb=s[1]}}
  return {im,fb,gig,sfbb,secFallback:!(bb&&bb.pc&&bb.pc[pc])}}
 
-async function loadNeighbourhood(la,lo,el){try{
- const loc=await fetch(`https://data.police.uk/api/locate-neighbourhood?q=${la},${lo}`).then(r=>r.ok?r.json():null);
- if(!loc||!loc.force||!loc.neighbourhood){el.innerHTML='<p class="muted">No neighbourhood team found for this point.</p>';return}
+async function loadNeighbourhood(la,lo,el){
+ const fail=()=>{el.innerHTML='<p class="muted">Could not load neighbourhood details just now. Police.uk sometimes blocks requests from this site.</p><p><button type="button" class="btn ghost" id="nb-retry">Try again</button></p>'; const b=$('#nb-retry'); if(b) b.onclick=()=>{el.innerHTML='<p class="muted">Looking up the local police team…</p>'; loadNeighbourhood(la,lo,el)};};
+ try{
+ const loc=await fetchJSON(`https://data.police.uk/api/locate-neighbourhood?q=${la},${lo}`, null, 3);
+ if(!loc){fail();return}
+ if(!loc.force||!loc.neighbourhood){el.innerHTML='<p class="muted">No neighbourhood team found for this point.</p>';return}
  const [info,pri,people,events]=await Promise.all([
-  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}`).then(r=>r.ok?r.json():null).catch(()=>null),
-  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/priorities`).then(r=>r.ok?r.json():[]).catch(()=>[]),
-  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/people`).then(r=>r.ok?r.json():[]).catch(()=>[]),
-  fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/events`).then(r=>r.ok?r.json():[]).catch(()=>[])
+  fetchJSON(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}`, null, 3),
+  fetchJSON(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/priorities`, [], 3),
+  fetchJSON(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/people`, [], 3),
+  fetchJSON(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/events`, [], 3)
  ]);
+ if(!info){fail();return}
  const name=(info&&info.name)||loc.neighbourhood.replace(/_/g,' ');
  const url=`https://www.police.uk/pu/your-area/${loc.force}/${loc.neighbourhood.toLowerCase().replace(/_/g,'-')}/`;
  const cd=(info&&info.contact_details)||{};
@@ -189,7 +220,7 @@ async function loadNeighbourhood(la,lo,el){try{
  ${peoHtml?`<h4 class="subh">Neighbourhood officers</h4><ul class="peo">${peoHtml}</ul>`:''}
  <p class="muted">Events, contacts and officers are as the force published them on data.police.uk and can change. For a non-emergency report use 101; call 999 in an emergency.</p>
  <p><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">Open on police.uk</a></p>`}
- catch{el.innerHTML='<p class="muted">Could not load neighbourhood details right now.</p>'}}
+ catch{fail()}}
 
 
 /* ---------- Stage G helpers ---------- */
@@ -694,6 +725,56 @@ function yoyLine(yoy,name){
   return `${who} crime is ${Math.abs(yoy)}% ${yoy>0?'higher':'lower'} than the previous 12 months.`;
 }
 function bandWord(band){return band==='Medium'?'Average':(band||'')}
+function bandPill(band){
+  const w=bandWord(band)||'–';
+  const cls=w==='Low'?'good':w==='High'?'bad':'neu';
+  const icon=w==='Low'?'check':w==='High'?'shield':'people';
+  return `<span class="band-pill badge ${cls}">${ic(icon,16)} ${esc(w)}</span>`;
+}
+function rLabel(rMi){return rMi===0.5?'½ mile':(rMi+' mile'+(rMi===1?'':'s'))}
+function radiusCompareSentence(cur,prev,rMi,postcode){
+  if(prev==null) return null;
+  const where=`within ${rLabel(rMi)} of ${esc(postcode)}`;
+  if(cur<20||prev<20) return `In the last 12 months, ${fmt(cur)} crimes were recorded ${where}. In the 12 months before, ${fmt(prev)} were recorded in the same radius — too few in one or both years for a reliable percentage change.`;
+  const ch=(cur-prev)/prev*100, abs=Math.abs(ch);
+  const n=abs>=10?Math.round(abs):(Math.round(abs*10)/10);
+  if(abs<0.5) return `In the last 12 months, ${fmt(cur)} crimes were recorded ${where}. That is about the same as the 12 months before (${fmt(prev)}), counting pins in the same radius.`;
+  return `In the last 12 months, ${fmt(cur)} crimes were recorded ${where}. That is ${n}% ${ch>0?'higher':'lower'} than the 12 months before (${fmt(prev)}), counting pins in the same radius.`;
+}
+function areaSummarySentence(total,yoy,name){
+  const where=name?`in ${esc(name)}`:'across Cambridgeshire and Peterborough';
+  let s=`In the last 12 months, ${fmt(total)} crimes were recorded ${where}.`;
+  if(yoy==null) return s;
+  if(yoy===0) return s+' That is about the same as the 12 months before.';
+  return s+` That is ${Math.abs(yoy)}% ${yoy>0?'higher':'lower'} than the 12 months before.`;
+}
+const HINT_KEY='sl-hint-v1';
+function maybeHint(){
+  try{if(localStorage.getItem(HINT_KEY))return}catch{return}
+  if(!isSimple()||$('#sl-hint'))return;
+  const el=document.createElement('div');
+  el.id='sl-hint'; el.className='sl-hint'; el.setAttribute('role','region'); el.setAttribute('aria-label','How to read this site');
+  el.innerHTML=`<p>This is the simple view: a few headline figures and a map. Recorded crime is not a safety score, and pins sit on a nearby street or landmark, not an exact address. <a href="method.html">How to read this site</a></p><button type="button" class="btn ghost" id="hint-dismiss">Got it</button>`;
+  const host=$('#app'); if(!host)return;
+  host.prepend(el);
+  const b=$('#hint-dismiss'); if(b) b.onclick=()=>{try{localStorage.setItem(HINT_KEY,'1')}catch{} el.remove()};
+}
+function useMyLocation(){
+  const err=m=>{const s=$('#serr'); if(s) s.textContent=m};
+  if(!navigator.geolocation){err('Location is not available on this device.');return}
+  err('Finding your location…');
+  navigator.geolocation.getCurrentPosition(async p=>{
+    try{
+      const r=await fetch(`https://api.postcodes.io/postcodes?lon=${p.coords.longitude}&lat=${p.coords.latitude}&limit=5`).then(x=>x.json());
+      const hit=(r.result||[]).find(pc=>S.districts.some(d=>d.name===pc.admin_district));
+      if(hit) go('pc='+encodeURIComponent(hit.postcode));
+      else err('You do not appear to be in Cambridgeshire or Peterborough. Type a local postcode instead.');
+    }catch{err('Could not look up your postcode.')}
+  }, e=>{
+    err(e&&e.code===1?'Location permission was refused. Type a postcode instead.':'Could not read your location. Type a postcode instead.');
+  }, {enableHighAccuracy:false, timeout:10000, maximumAge:0});
+}
+
 
 function go(q,push=true){const u=new URL(location.href);u.hash='';
   const p=new URLSearchParams(q||'');
@@ -723,7 +804,7 @@ function searchBox(){return `<form class="search" id="sf" role="search" autocomp
  <input id="pc" type="text" inputmode="text" autocapitalize="characters" aria-label="Postcode or place" placeholder="Postcode or place, e.g. PE29 3TN or Ely" role="combobox" aria-expanded="false" aria-controls="ac" aria-autocomplete="list" data-tip="Type a Cambridgeshire or Peterborough postcode, or a place name such as Ely or Huntingdon.">
  ${tipI('Search a Cambridgeshire or Peterborough postcode, or a place name (Ely, Huntingdon, a village). Place search uses postcodes.io and then opens the nearest postcode.')}
  <button class="btn lg" data-tip="Show the area dashboard for this postcode.">Explore</button></div><ul class="ac" id="ac" role="listbox" aria-label="Postcode suggestions"></ul>
- <div class="qrow"><button type="button" class="chip" id="geo" data-tip="Use your device location to find your nearest postcode. Your location is only sent to postcodes.io to look up the postcode.">${ic('loc',18)} Use my location</button>
+ <div class="qrow"><button type="button" class="chip" id="geo" data-tip="Use your device location to find the nearest Cambridgeshire or Peterborough postcode. Your location is sent only to postcodes.io for that lookup and is not stored.">${ic('loc',18)} Use my location</button>
  <span class="lbl">Try:</span>${[['Huntingdon','PE29 3TN'],['Cambridge','CB2 1TN'],['Peterborough','PE1 1HL'],['Ely','CB7 4BL']].map(([n,p])=>`<button type="button" class="chip" data-pc="${p}" data-tip="See the dashboard for ${n} (${p}).">${n}</button>`).join('')}</div>
  <div class="err" id="serr" role="alert"></div></form>`}
 function wireSearch(){const f=$('#sf'),i=$('#pc'),ac=$('#ac');if(!f||!i)return;let sel=-1,items=[],tmr;
@@ -752,8 +833,8 @@ function wireSearch(){const f=$('#sf'),i=$('#pc'),ac=$('#ac');if(!f||!i)return;l
   // resolve typed place name
   goPlace({kind:'place',label:v,name:v})};
  f.querySelectorAll('[data-pc]').forEach(b=>{if(b.tagName==='BUTTON')b.onclick=()=>go('pc='+encodeURIComponent(b.dataset.pc))});
- const geo=$('#geo'); if(geo) geo.onclick=()=>{if(!navigator.geolocation){$('#serr').textContent='Location is not available on this device.';return}$('#serr').textContent='Finding your location…';
-  navigator.geolocation.getCurrentPosition(async p=>{try{const r=await fetch(`https://api.postcodes.io/postcodes?lon=${p.coords.longitude}&lat=${p.coords.latitude}&limit=1`).then(r=>r.json());if(r.result&&r.result[0])go('pc='+encodeURIComponent(r.result[0].postcode));else $('#serr').textContent='No postcode found near you.'}catch{$('#serr').textContent='Could not look up your postcode.'}},()=>{$('#serr').textContent='Location permission was refused. Type a postcode instead.'},{timeout:10000})}}
+ const geo=$('#geo'); if(geo) geo.onclick=useMyLocation;
+}
 async function goPlace(it){try{
   let lat=it.lat,lon=it.lon;
   if(lat==null){const pl=await fetch('https://api.postcodes.io/places?q='+encodeURIComponent(it.name||it.label)+'&limit=8').then(r=>r.json()); const hit=(pl.result||[]).find(placeInArea); if(!hit){$('#serr').textContent='No matching place in Cambridgeshire or Peterborough.';return} lat=hit.latitude; lon=hit.longitude}
@@ -789,7 +870,7 @@ async function fillSimpleOverviewMap(dist){
       extents.forEach(({d,e})=>{
         if(!e)return;
         b.push([e.lat,e.lon]);
-        L.marker([e.lat,e.lon],{title:d.name,keyboard:true}).addTo(map)
+        L.marker([e.lat,e.lon],{icon:L.divIcon({className:'',html:`<div class="pin pin-dist" style="width:44px;height:44px;background:#14213d">${ic('pin',20)}</div>`,iconSize:[44,44],iconAnchor:[22,22]}),title:d.name,keyboard:true,alt:d.name+' — open district overview'}).addTo(map)
           .bindPopup(`<b>${esc(d.name)}</b><br>${d.rate} recorded crimes per 1,000 residents<br><a href="?${dq(d)}" data-q="${dq(d)}">Open ${esc(d.name)}</a>`);
       });
       if(b.length) map.fitBounds(b,{padding:[28,28],maxZoom:10});
@@ -813,6 +894,7 @@ function homeSimple(dist){
   app.innerHTML=`<section class="hero simple-hero"><div class="in">
     <span class="eyebrow">${ic('pin',16)} ${isAll?'Cambridgeshire &amp; Peterborough':esc(a.name)} · ${period}</span>
     <h1>${isAll?'A simple look at crime in your area':esc(a.name)+' at a glance'}</h1>
+    <p class="plain-sum">${areaSummarySentence(a.total,a.yoy,isAll?null:a.name)}</p>
     <p class="lead">${isAll?'Search a postcode for a short, plain-English picture of recorded crime nearby.':'A short picture of recorded crime in '+esc(a.name)+'. Search a postcode for street-level detail.'}</p>
     ${searchBox()}
   </div></section>
@@ -831,27 +913,40 @@ function homeSimple(dist){
   </div>`;
   wireSearch();
   wireSeeDetails();
+  maybeHint();
   requestAnimationFrame(()=>requestAnimationFrame(()=>fillSimpleOverviewMap(dist)));
 }
 
 async function loadNeighbourhoodSimple(la,lo,el){
   if(!el)return;
+  const fail=()=>{el.innerHTML='<h2>Local police team</h2><p class="muted">The neighbourhood team could not be loaded just now. Police.uk sometimes blocks requests from this site.</p><p><button type="button" class="btn ghost" id="nb-retry">Try again</button></p>'; const b=$('#nb-retry'); if(b) b.onclick=()=>{el.innerHTML='<p class="muted">Looking up the local police team…</p>'; loadNeighbourhoodSimple(la,lo,el)};};
   try{
-    const loc=await fetch(`https://data.police.uk/api/locate-neighbourhood?q=${la},${lo}`).then(r=>r.ok?r.json():null).catch(()=>null);
-    if(!loc||!loc.force||!loc.neighbourhood){el.innerHTML='<h2>Local police team</h2><p class="muted">No neighbourhood team was found for this point.</p>';return}
-    const info=await fetch(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}`).then(r=>r.ok?r.json():null).catch(()=>null);
+    const loc=await fetchJSON(`https://data.police.uk/api/locate-neighbourhood?q=${la},${lo}`, null, 3);
+    if(!loc){fail();return}
+    if(!loc.force||!loc.neighbourhood){el.innerHTML='<h2>Local police team</h2><p class="muted">No neighbourhood team was found for this point.</p>';return}
+    const info=await fetchJSON(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}`, null, 3);
+    const ev=await fetchJSON(`https://data.police.uk/api/${loc.force}/${loc.neighbourhood}/events`, [], 3);
     const name=(info&&info.name)||loc.neighbourhood.replace(/_/g,' ');
     const url=`https://www.police.uk/pu/your-area/${loc.force}/${loc.neighbourhood.toLowerCase().replace(/_/g,'-')}/`;
     const cd=(info&&info.contact_details)||{};
     const tel=cd.telephone||cd.phone, email=cd.email;
+    const upcoming=(Array.isArray(ev)?ev:[]).filter(e=>{
+      const d=e&& (e.start_date||e.date||e.start);
+      if(!d) return true;
+      const t=Date.parse(d);
+      return isNaN(t)||t>=Date.now()-86400000;
+    }).slice(0,3);
+    if(!info){fail();return}
     el.innerHTML=`<h2>Local police team</h2>
       <p><b>${esc(name)}</b></p>
       ${tel?`<p>Phone <a href="tel:${esc(String(tel).replace(/\s+/g,''))}">${esc(tel)}</a></p>`:''}
       ${email?`<p><a href="mailto:${esc(email)}">${esc(email)}</a></p>`:''}
+      ${upcoming.length?`<h3>Upcoming events</h3><ul class="simple-strip">${upcoming.map(e=>`<li>${esc(e.title||e.name||'Event')}${e.start_date||e.date?' · '+esc(e.start_date||e.date):''}</li>`).join('')}</ul>`:''}
       <p class="muted">For a non-emergency report use 101. Call 999 in an emergency.</p>
       <p><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">Open on police.uk</a></p>`;
-  }catch{el.innerHTML='<h2>Local police team</h2><p class="muted">The neighbourhood team could not be loaded just now.</p>'}
+  }catch{fail()}
 }
+
 
 async function dashboardSimple(raw){
   const gen=_routeGen;
@@ -886,13 +981,15 @@ async function dashboardSimple(raw){
   app.innerHTML=`<div class="wrap simple-view simple-pc">
     <p class="eyebrow">${ic('pin',16)} ${esc(R.admin_ward||'')}${R.admin_ward?', ':''}${esc(ad)} · ${period}</p>
     <h1>${postcode}</h1>
+    <p class="plain-sum" id="plain-sum">In the last 12 months, ${fmt(nearAll.length)} crimes were recorded within ${rLabel(rMi)} of ${esc(postcode)}. Looking up the same radius a year earlier…</p>
     <div class="ctl" style="margin:8px 0 16px">${radiusBar(rMi)}</div>
+    <p class="simple-geo"><button type="button" class="chip" id="geo" data-tip="Use your device location to find the nearest Cambridgeshire or Peterborough postcode. Your location is sent only to postcodes.io for that lookup and is not stored.">${ic('loc',18)} Use my location</button> <span class="err" id="serr" role="alert"></span></p>
     <div class="kpis">
       ${kpi('shield','Recorded crimes within '+(rMi===0.5?'½':rMi)+' mile',fmt(nearAll.length),'Last 12 months')}
-      ${kpi('map','Neighbourhood band',esc(band),row&&row.rate!=null?(`${row.rate} per 1,000 residents`):'Approximate band for this neighbourhood')}
+      ${kpi('map','Neighbourhood band',bandPill(row&&row.band),row&&row.rate!=null?(`${row.rate} per 1,000 residents`):'Approximate band for this neighbourhood')}
     </div>
     <p class="explain">The neighbourhood band is Low, Average or High among Cambridgeshire &amp; Peterborough neighbourhoods. It is an approximate recorded-crime rate, not a safety score — town centres often look higher because visitors are not counted as residents.</p>
-    ${dist.yoy!=null?`<p class="explain">${yoyLine(dist.yoy,dist.name)}</p>`:''}
+    <p class="explain" id="simple-yoy">${dist.yoy!=null?yoyLine(dist.yoy,dist.name):''}</p>
     <div class="card"><h2>Most recorded types</h2>
       ${top.length?`<ol class="simple-types">${top.map(([k,n])=>`<li><b>${esc(cn(k))}</b> <span class="muted">${fmt(n)}</span></li>`).join('')}</ol>`:'<p class="muted">No recorded crimes in this radius in the latest 12 months.</p>'}
     </div>
@@ -912,9 +1009,38 @@ async function dashboardSimple(raw){
     ${seeDetailsBtn()}
   </div>`;
   wireSeeDetails();
-  document.querySelectorAll('.rbtn[data-r]').forEach(b=>b.onclick=()=>{setR(parseFloat(b.dataset.r));dashboard(postcode)});
+  maybeHint();
+  const geo=$('#geo'); if(geo) geo.onclick=useMyLocation;
+  document.querySelectorAll('.rbtn[data-r]').forEach(b=>b.onclick=()=>{setR(parseFloat(b.dataset.r));dashboardSimple(postcode)});
   const u=new URL(location.href);u.search=pcUrl(postcode);history.replaceState(null,'',u);
   loadNeighbourhoodSimple(la,lo,$('#nbhood'));
+  (async()=>{
+    try{
+      const prev=await loadPrevPointsNear(la,lo,rMi);
+      if(gen!==_routeGen)return;
+      const n=prev&&prev.pts?prev.pts.length:null;
+      const sent=radiusCompareSentence(nearAll.length,n,rMi,postcode);
+      const el=$('#plain-sum');
+      if(sent&&el) el.innerHTML=sent;
+      else if(el){
+        const fb=dist.yoy!=null?` ${yoyLine(dist.yoy,dist.name)}`:' Looking up the same radius a year earlier was not possible just now.';
+        el.innerHTML=`In the last 12 months, ${fmt(nearAll.length)} crimes were recorded within ${rLabel(rMi)} of ${esc(postcode)}.${fb}`;
+      }
+      if(n!=null&&nearAll.length>=20&&n>=20){
+        const ch=(nearAll.length-n)/n*100;
+        const yoyEl=$('#simple-yoy');
+        if(yoyEl){
+          const abs=Math.abs(ch);
+          const shown=abs>=10?Math.round(abs):(Math.round(abs*10)/10);
+          const dir=abs<0.5?'about the same as':((ch>0?'up ':'down ')+shown+'% on');
+          yoyEl.textContent=`In this ${rLabel(rMi)} radius, recorded crime is ${dir} the 12 months before (${fmt(n)} then, ${fmt(nearAll.length)} now).`;
+        }
+      }
+    }catch{
+      const el=$('#plain-sum');
+      if(el) el.innerHTML=`In the last 12 months, ${fmt(nearAll.length)} crimes were recorded within ${rLabel(rMi)} of ${esc(postcode)}.${dist.yoy!=null?' '+yoyLine(dist.yoy,dist.name):''}`;
+    }
+  })();
   (async()=>{
     try{
       const ex=await loadAreaExtras(postcode,code);
@@ -935,7 +1061,7 @@ async function dashboardSimple(raw){
     map=L.map('smap',{zoomControl:true}).setView([la,lo],rMi<=0.5?15:rMi<=1?14:13);
     osmLayer().addTo(map);
     L.circle([la,lo],{radius:rMi*1609.34,color:'#0f766e',weight:2,fillOpacity:.04}).addTo(map);
-    L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:34px;height:34px;background:#14213d">${ic('pin',18)}</div>`,iconSize:[34,34],iconAnchor:[17,17]}),zIndexOffset:1000,keyboard:true,title:postcode}).addTo(map).bindPopup('<b>'+postcode+'</b>');
+    L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:44px;height:44px;background:#14213d">${ic('pin',20)}</div>`,iconSize:[44,44],iconAnchor:[22,22]}),zIndexOffset:1000,keyboard:true,title:postcode}).addTo(map).bindPopup('<b>'+postcode+'</b>');
     const g=simpleCluster();
     nearAll.forEach(p=>g.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}) .bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}`)));
     map.addLayer(g);
@@ -1040,20 +1166,29 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
  nav(slug(dist.name));
  const rMi=getR(),w=getW(),wm=wMonths(w),degPad=rMi*0.02;
  setMeta(`${postcode} · ${ad} — StreetLens`,`Crime, outcomes, schools and homes within ${rMi===0.5?'½':rMi} mile${rMi===1?'':'s'} of ${postcode} (${R.admin_ward?R.admin_ward+', ':''}${ad}), ${wLabel(w)}.`,location.origin+location.pathname+pcUrl(postcode));
- const [nearLoaded,GP,DE,SC,ST,RA,SS,GS,HS,CO]=await Promise.all([loadPointsNear(la,lo,rMi), ...['gp','dentists','schools','stops','rail','stopsearch'].map(lj), lj('greenspace').catch(()=>[]), lj('hotspots').catch(()=>null), lj('collisions').catch(()=>null)]);
+ const [nearLoaded]=await Promise.all([loadPointsNear(la,lo,rMi)]);
+ let GP=[],DE=[],SC=[],ST=[],RA=[],SS=[],GS=[],HS=null,CO=null;
  const nearAll=nearLoaded.filter(p=>inWindow(p,w));
  const cats=S.categories.map(c=>c.id);let tf=getTypeFilter();
  const near=(!tf||tf.size===S.categories.length)?nearAll:nearAll.filter(p=>tf.has(cats[p[2]]));
  const by={},mon={},oc=[0,0,0,0,0,0,0];wm.forEach(m=>mon[m]=0);nearAll.forEach(p=>{by[cats[p[2]]]=(by[cats[p[2]]]||0)+1;mon[S.months[p[3]]]++;oc[p[4]]++});
  const nonAsb=nearAll.length-oc[6],pos=oc[0]+oc[1],solve=nonAsb?pos/nonAsb*100:null,cs=solveOf(S.overview),ds=solveOf(dist);
- const nearSS=ssNear(SS,la,lo,rMi,w),ssN=nearSS.length,sector=postcode.slice(0,-2).trim(),sp=PR.sectors[sector],dp=PR.districts[dist.code];
- const st500=ST.filter(p=>Math.abs(p[0]-la)<.01&&hav(la,lo,p[0],p[1])<=0.3107).length,rails=nearest(RA,la,lo,3);
- const gps=nearest(GP,la,lo,3),des=nearest(DE,la,lo,3),scs=nearest(SC,la,lo,5),busN=nearest(ST,la,lo,3),parks=nearest(GS||[],la,lo,5);
+ let nearSS=[],ssN=0; const sector=postcode.slice(0,-2).trim(),sp=PR.sectors[sector],dp=PR.districts[dist.code];
+ let st500='…',rails=[],gps=[],des=[],scs=[],busN=[],parks=[];
  const n250=(lat,lon)=>nearAll.filter(c=>hav(lat,lon,c[0],c[1])<=0.1553).length;
  const busiest=Object.entries(by).sort((a,b)=>b[1]-a[1])[0],mv=wm.map(m=>mon[m]||0);
- const nearSpots=HS&&HS.spots?HS.spots.map(s=>{const d=hav(la,lo,s[0],s[1]);return d<=rMi?Object.assign([...s],{d}):null}).filter(Boolean).sort((a,b)=>b[2]-a[2]):[];
- const nearCO=CO&&CO.points?CO.points.filter(p=>hav(la,lo,p[0],p[1])<=rMi):[];
- const coRow={n:nearCO.length,fatal:nearCO.filter(p=>p[2]===1).length,serious:nearCO.filter(p=>p[2]===2).length,slight:nearCO.filter(p=>p[2]===3).length,cas:nearCO.reduce((s,p)=>s+(p[4]||0),0)};
+ let nearSpots=[],nearCO=[],coRow={n:0,fatal:0,serious:0,slight:0,cas:0};
+ let extrasApplied=false, buildExtraLayers=null;
+ function applyExtras(){
+  extrasApplied=true;
+  nearSS=ssNear(SS,la,lo,rMi,w); ssN=nearSS.length;
+  st500=ST.filter(p=>Math.abs(p[0]-la)<.01&&hav(la,lo,p[0],p[1])<=0.3107).length;
+  rails=nearest(RA,la,lo,3); gps=nearest(GP,la,lo,3); des=nearest(DE,la,lo,3);
+  scs=nearest(SC,la,lo,5); busN=nearest(ST,la,lo,3); parks=nearest(GS||[],la,lo,5);
+  nearSpots=HS&&HS.spots?HS.spots.map(s=>{const d=hav(la,lo,s[0],s[1]);return d<=rMi?Object.assign([...s],{d}):null}).filter(Boolean).sort((a,b)=>b[2]-a[2]):[];
+  nearCO=CO&&CO.points?CO.points.filter(p=>hav(la,lo,p[0],p[1])<=rMi):[];
+  coRow={n:nearCO.length,fatal:nearCO.filter(p=>p[2]===1).length,serious:nearCO.filter(p=>p[2]===2).length,slight:nearCO.filter(p=>p[2]===3).length,cas:nearCO.reduce((s,p)=>s+(p[4]||0),0)};
+ }
  // typical 1-mile count across all points in district is costly; compare with district density via share of district crime per sq mile is misleading, so compare with county median of 1-mile counts is skipped. Use district/county rates for context.
  const nl=(arr,key,meta)=>`<ol class="near">${arr.map((x,k)=>`<li><span class="ico" style="background:${LAYERS[key].c}">${ic(LAYERS[key].i,18)}</span><b>${esc(x[2])}</b><span class="d">${x.d.toFixed(1)} mi</span><span class="m">${meta(x)}</span></li>`).join('')}</ol>`;
  const schip=(icon,lab,val,tab,t)=>`<button class="schip" data-go="${tab}" data-tip="${esc(t)}">${ic(icon,18)}<span>${lab}</span><b>${val}</b></button>`;
@@ -1062,9 +1197,9 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
  ${schip('people','District rate',dist.rate+' <small>vs '+S.overview.rate+'</small>','crime',`${ad}: ${dist.rate} crimes per 1,000 residents against a county figure of ${S.overview.rate}.`)}
  ${schip('check','Solved',solve==null?'–':solve.toFixed(0)+'%','out','Solve rate for crimes within '+rMi+' mile(s). Open the Outcomes tab.')}
  ${schip('home','Median',sp?'£'+fmt(Math.round(sp[0]/1000))+'k':'–','homes','Median sale price in postcode sector '+sector+'. Open the Homes tab.')}
- ${schip('heart','GP',gps[0].d.toFixed(1)+' mi','health','Nearest GP: '+gps[0][2]+'. Open the Health tab.')}
- ${schip('school','School',scs[0].d.toFixed(1)+' mi','schools','Nearest school: '+scs[0][2]+'. Open the Schools tab.')}
- ${schip('train','Station',rails[0].d.toFixed(1)+' mi','transport','Nearest rail station: '+rails[0][2]+'. Open the Transport tab.')}
+ ${schip('heart','GP','…','health','Nearest GP surgery. Open the Health tab.')}
+ ${schip('school','School','…','schools','Nearest school. Open the Schools tab.')}
+ ${schip('train','Station','…','transport','Nearest rail station. Open the Transport tab.')}
  ${schip('depr','IMD','…','police','Index of Multiple Deprivation for this neighbourhood. Opens the Police / area tab.')}
  ${schip('flood','Flood','…','police','Rivers and sea flood risk for this postcode.')}
  ${schip('wifi','BB','…','police','Broadband availability.')}
@@ -1102,7 +1237,7 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
   ${monthHeat(mon,wm,'Year at a glance')}
   ${typeCompareMarkup()}
   ${seasonMarkup({title:'This year against the county pattern'})}
-  ${hotspotCard(nearSpots,{title:'Most recorded locations within the radius',clickable:true,csvId:'nearhot',note:'Within the chosen radius, over the latest 12 months. The time-window control does not change this list, because snap-point totals are built from the full 12-month file.',limit:12})}
+  <div id="hot-slot"><p class="muted">Loading frequent locations…</p></div>
   ${crimeTable(near,cats,wm)}
   <div class="card" id="nearby"><p class="muted">Looking for nearby neighbourhoods…</p></div></section>
  <section class="tp" role="tabpanel" id="p-out" aria-labelledby="t-out" hidden>
@@ -1117,21 +1252,20 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
   ${outcomeFunnel(oc)}
   ${explain('“Charged / resolved” combines a charge or summons with out-of-court results such as a caution. “No suspect” means the case was closed without identifying someone. Figures use the latest recorded outcome and can change.')}
   <div class="card">${outTable(oc,'nearout')}</div><p class="muted">District solve rate ${ds.toFixed(1)}% · county ${cs.toFixed(1)}%. Recent months often show more cases still under investigation.</p>
-  ${ssBlock(nearSS,w)}</section>
+  <div id="ss-slot"><p class="muted">Loading stop and search…</p></div></section>
  <section class="tp" role="tabpanel" id="p-health" aria-labelledby="t-health" hidden>
   <h2 class="sr-only">Health</h2>
-  <div class="card"><div class="row"><h3>Nearest GP surgeries</h3>${tipI('Active GP practices from the NHS Organisation Data Service, by straight-line distance.')}</div>${nl(gps,'gp',x=>x[3])}</div>
-  <div class="card"><div class="row"><h3>Nearest dentists</h3>${tipI('Active dental practices from the NHS Organisation Data Service. Check with the practice whether it takes new NHS patients.')}</div>${nl(des,'dent',x=>x[3])}</div></section>
+  <div class="card"><div class="row"><h3>Nearest GP surgeries</h3>${tipI('Active GP practices from the NHS Organisation Data Service, by straight-line distance.')}</div><div id="near-gp"><p class="muted">Loading…</p></div></div>
+  <div class="card"><div class="row"><h3>Nearest dentists</h3>${tipI('Active dental practices from the NHS Organisation Data Service. Check with the practice whether it takes new NHS patients.')}</div><div id="near-dent"><p class="muted">Loading…</p></div></div></section>
  <section class="tp" role="tabpanel" id="p-schools" aria-labelledby="t-schools" hidden>
   <h2 class="sr-only">Schools</h2>
-  <div class="card"><div class="row"><h3>Nearest schools</h3>${tipI('Open schools from DfE Get Information about Schools. The grade is the latest Ofsted overall effectiveness, from a graded inspection or an ungraded check that confirmed the grade. Single-word grades stopped in September 2024. The 250m crime count uses the same time window as the dashboard. Pins are snapped to a public location, so this is not a tally of incidents on the school site.')}</div>${nl(scs,'sch',x=>esc(x[3])+' · '+esc(x[4])+(x[5]?`<br><span class="badge ${/Outstanding|Good/.test(x[5])?'good':/Inadequate|Requires/.test(x[5])?'bad':'neu'}">Ofsted: ${esc(x[5])}</span> ${esc(x[6]||'')}`:'<br><span class="badge neu">No Ofsted grade published</span>')+`<br><span class="muted">${fmt(n250(x[0],x[1]))} recorded crimes within 250m</span>`)}<p class="muted">Crime pins are snapped to a public location, so a count within 250m of a school is not a count of incidents on the school site. The time window matches the dashboard.</p></div></section>
+  <div class="card"><div class="row"><h3>Nearest schools</h3>${tipI('Open schools from DfE Get Information about Schools. The grade is the latest Ofsted overall effectiveness, from a graded inspection or an ungraded check that confirmed the grade. Single-word grades stopped in September 2024. The 250m crime count uses the same time window as the dashboard. Pins are snapped to a public location, so this is not a tally of incidents on the school site.')}</div><div id="near-sch"><p class="muted">Loading schools…</p></div><p class="muted">Crime pins are snapped to a public location, so a count within 250m of a school is not a count of incidents on the school site. The time window matches the dashboard.</p></div></section>
  <section class="tp" role="tabpanel" id="p-transport" aria-labelledby="t-transport" hidden>
   <h2 class="sr-only">Transport</h2>
-  ${CO?collisionSummary(coRow,CO,{title:'Injury collisions within the radius',extra:'Turn on the Collisions map layer to see the points. Calendar years 2024 and 2025.'}):''}
-  ${CO&&coRow?explain('These are personal-injury collisions reported to the police in calendar years 2024 and 2025 — not the same window as the crime figures, and damage-only bumps are not included.'):''}
-  <div class="mini">${kpi('bus','Bus stops within 500m',st500,'From the NaPTAN stop register','Active bus stops within 500 metres of the postcode.')}${kpi('train','Nearest station',esc(rails[0][2]),rails[0].d.toFixed(1)+' miles','Nearest National Rail station by straight-line distance.')}</div>
-  <div class="card"><div class="row"><h3>Nearest rail stations</h3>${tipI('National Rail stations by straight-line distance. The 250m crime count uses the same time window as the dashboard. Pins are snapped to a public location, so this is not a tally of incidents inside the station.')}</div>${nl(rails,'rail',x=>'National Rail<br><span class="muted">'+fmt(n250(x[0],x[1]))+' recorded crimes within 250m</span>')}<p class="muted">Crime pins are snapped to a public location, so a count within 250m of a station is not a count of incidents on the station site.</p></div>
-  <div class="card"><div class="row"><h3>Nearest bus stops</h3></div>${nl(busN,'bus',()=> 'Bus stop')}</div></section>
+  <div id="coll-slot"></div>
+  <div class="mini" id="trans-kpis">${kpi('bus','Bus stops within 500m','…','From the NaPTAN stop register','Active bus stops within 500 metres of the postcode.')}${kpi('train','Nearest station','…','Loading…','Nearest National Rail station by straight-line distance.')}</div>
+  <div class="card"><div class="row"><h3>Nearest rail stations</h3>${tipI('National Rail stations by straight-line distance. The 250m crime count uses the same time window as the dashboard. Pins are snapped to a public location, so this is not a tally of incidents inside the station.')}</div><div id="near-rail"><p class="muted">Loading stations…</p></div><p class="muted">Crime pins are snapped to a public location, so a count within 250m of a station is not a count of incidents on the station site.</p></div>
+  <div class="card"><div class="row"><h3>Nearest bus stops</h3></div><div id="near-bus"><p class="muted">Loading bus stops…</p></div></div></section>
  <section class="tp" role="tabpanel" id="p-homes" aria-labelledby="t-homes" hidden>
   <h2 class="sr-only">Homes</h2>
   <div class="mini">${kpi('home','Median price, '+sector,sp?'£'+fmt(sp[0]):'–',sp?`${fmt(sp[1])} sales ${badge(sp[0],dp[0],ad,false).replace(/bad|good/,'neu')}`:'No sales recorded','Median price of standard residential sales in this postcode sector, HM Land Registry Price Paid Data.')}
@@ -1163,6 +1297,40 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
   if(b.dataset.tf==='all'){setTypeFilter(null)}else{const id=b.dataset.tf;if(cur.has(id)&&cur.size>1)cur.delete(id);else cur.add(id);if(cur.size===S.categories.length)setTypeFilter(null);else setTypeFilter(cur)}
   window._keep=snapState();dashboard(postcode)});
  loadNeighbourhood(la,lo,$('#nbhood'));
+ (async()=>{
+  try{
+   const pack=await Promise.all(['gp','dentists','schools','stops','rail','stopsearch'].map(lj).concat([lj('greenspace').catch(()=>[]), lj('hotspots').catch(()=>null), lj('collisions').catch(()=>null)]));
+   if(window._ctx&&window._ctx.postcode!==postcode)return;
+   GP=pack[0]||[];DE=pack[1]||[];SC=pack[2]||[];ST=pack[3]||[];RA=pack[4]||[];SS=pack[5]||[];GS=pack[6]||[];HS=pack[7];CO=pack[8];
+   applyExtras();
+   window._ctx={la,lo,postcode,near,nearAll,cats,rMi,w,GP:within0(GP,la,lo,5),DE:within0(DE,la,lo,5),SC:within0(SC,la,lo,5),ST:within0(ST,la,lo,3),RA:within0(RA,la,lo,15),GS:within0(GS||[],la,lo,5),CO:nearCO};
+   const chipUp0=(lab,val,tip)=>{const b=[...document.querySelectorAll('.schip')].find(x=>x.textContent.includes(lab));if(!b)return;const bb=b.querySelector('b');if(bb)bb.innerHTML=val;if(tip)b.setAttribute('data-tip',tip)};
+   if(gps[0]) chipUp0('GP',gps[0].d.toFixed(1)+' mi','Nearest GP: '+gps[0][2]+'. Open the Health tab.'); else chipUp0('GP','–');
+   if(scs[0]) chipUp0('School',scs[0].d.toFixed(1)+' mi','Nearest school: '+scs[0][2]+'. Open the Schools tab.'); else chipUp0('School','–');
+   if(rails[0]) chipUp0('Station',rails[0].d.toFixed(1)+' mi','Nearest rail station: '+rails[0][2]+'. Open the Transport tab.'); else chipUp0('Station','–');
+   if(parks[0]){
+     const host=document.querySelector('.schips');
+     if(host&&![...host.querySelectorAll('.schip')].some(x=>x.textContent.includes('Park'))){
+       host.insertAdjacentHTML('beforeend', schip('park','Park',parks[0].d.toFixed(1)+' mi','transport','Nearest park or playing field (OS Open Greenspace): '+parks[0][2]+'.'));
+       host.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{const t=$('#t-'+b.dataset.go);if(t){sel(t);t.scrollIntoView({block:'nearest',behavior:reduce?'auto':'smooth'});t.focus({preventScroll:true})}});
+     }
+   }
+   const put=(id,html)=>{const el=$(id); if(el) el.outerHTML=html};
+   put('#near-gp', nl(gps,'gp',x=>x[3]));
+   put('#near-dent', nl(des,'dent',x=>x[3]));
+   put('#near-sch', nl(scs,'sch',x=>esc(x[3])+' · '+esc(x[4])+(x[5]?`<br><span class="badge ${/Outstanding|Good/.test(x[5])?'good':/Inadequate|Requires/.test(x[5])?'bad':'neu'}">Ofsted: ${esc(x[5])}</span> ${esc(x[6]||'')}`:'<br><span class="badge neu">No Ofsted grade published</span>')+`<br><span class="muted">${fmt(n250(x[0],x[1]))} recorded crimes within 250m</span>`));
+   put('#near-rail', nl(rails,'rail',x=>'National Rail<br><span class="muted">'+fmt(n250(x[0],x[1]))+' recorded crimes within 250m</span>'));
+   put('#near-bus', nl(busN,'bus',()=> 'Bus stop'));
+   const hs=$('#hot-slot'); if(hs) hs.outerHTML=hotspotCard(nearSpots,{title:'Most recorded locations within the radius',clickable:true,csvId:'nearhot',note:'Within the chosen radius, over the latest 12 months. The time-window control does not change this list, because snap-point totals are built from the full 12-month file.',limit:12});
+   document.querySelectorAll('.hot-go').forEach(b=>b.onclick=()=>{const lat=+b.dataset.lat,lon=+b.dataset.lon; if(is3d()&&typeof m3!=='undefined'&&m3)m3.flyTo({center:[lon,lat],zoom:16,duration:reduce?0:800}); else if(map){map.setView([lat,lon],16); L.popup().setLatLng([lat,lon]).setContent('<b>'+esc(b.textContent)+'</b>').openOn(map)}});
+   const ss=$('#ss-slot'); if(ss) ss.outerHTML=ssBlock(nearSS,w);
+   const cslot=$('#coll-slot'); if(cslot) cslot.innerHTML=(CO?collisionSummary(coRow,CO,{title:'Injury collisions within the radius',extra:'Turn on the Collisions map layer to see the points. Calendar years 2024 and 2025.'}):'')+(CO&&coRow?explain('These are personal-injury collisions reported to the police in calendar years 2024 and 2025 — not the same window as the crime figures, and damage-only bumps are not included.'):'');
+   const tk=$('#trans-kpis');
+   if(tk) tk.innerHTML=kpi('bus','Bus stops within 500m',st500,'From the NaPTAN stop register','Active bus stops within 500 metres of the postcode.')+kpi('train','Nearest station',rails[0]?esc(rails[0][2]):'–',rails[0]?rails[0].d.toFixed(1)+' miles':'No station found','Nearest National Rail station by straight-line distance.');
+   if(typeof buildExtraLayers==='function') buildExtraLayers();
+   afterPaint(()=>{if($('#sstrend'))drawSsTrend($('#sstrend'),nearSS,w)});
+  }catch(err){console.warn('Optional area layers could not be loaded', err)}
+ })();
  (async()=>{const ex=await loadAreaExtras(postcode,(R.codes&&(R.codes.lsoa21||R.codes.lsoa))||'');
   const host=$('#areax'); if(!host)return;
   const chipUp=(lab,val)=>{const b=[...document.querySelectorAll('.schip')].find(x=>x.textContent.includes(lab));if(b){const bb=b.querySelector('b');if(bb)bb.textContent=val}};
@@ -1197,7 +1365,7 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
   </div>
   <p class="muted">Sources: MHCLG IoD 2025 · Environment Agency RoFRS · Ofcom Connected Nations (OGL). <a href="method.html">How to read this</a>.</p>`})();
  const u=new URL(location.href);u.search=pcUrl(postcode);history.replaceState(null,'',u);
- trend($('#trend'),mon,'Crimes within radius',wm); if($('#season')) drawSeason($('#season'),mon,wm,S.overview.monthly); if($('#tcmp')) drawTypeCompare($('#tcmp'),by,nearAll.length||1); if($('#outtrend'))outcomeTrend($('#outtrend'),nearAll,wm); if($('#typetrend'))typeTrend($('#typetrend'),nearAll,cats,wm); if($('#sstrend'))drawSsTrend($('#sstrend'),nearSS,w);
+ afterPaint(()=>{trend($('#trend'),mon,'Crimes within radius',wm); if($('#season')) drawSeason($('#season'),mon,wm,S.overview.monthly); if($('#tcmp')) drawTypeCompare($('#tcmp'),by,nearAll.length||1); if($('#outtrend'))outcomeTrend($('#outtrend'),nearAll,wm); if($('#typetrend'))typeTrend($('#typetrend'),nearAll,cats,wm)});
  // map
  window._ctx={la,lo,postcode,near,nearAll,cats,rMi,w,GP:within0(GP,la,lo,5),DE:within0(DE,la,lo,5),SC:within0(SC,la,lo,5),ST:within0(ST,la,lo,3),RA:within0(RA,la,lo,15),GS:within0(GS||[],la,lo,5),CO:nearCO};
  await ensureLeaflet(); map=L.map('map',{zoomControl:true}).setView([la,lo],rMi<=0.5?15:rMi<=1?14:13);
@@ -1209,12 +1377,26 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
  const crimeL=clus(LAYERS.crimes.c);near.forEach(p=>crimeL.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}).bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br><i>${S.outcomeBuckets[p[4]]}</i>`)));
  const within=(arr,mi)=>arr.filter(p=>hav(la,lo,p[0],p[1])<=mi);
  const grp=(arr,k,pop,mi=5)=>{const g=clus(LAYERS[k].c);within(arr,mi).forEach(p=>g.addLayer(L.marker([p[0],p[1]],{icon:pinI(k),title:p[2]}).bindPopup(pop(p))));return g};
- const busL=clus(LAYERS.bus.c);within(ST,3).forEach(p=>busL.addLayer(L.circleMarker([p[0],p[1]],{radius:5,color:'#fff',weight:1.5,fillColor:LAYERS.bus.c,fillOpacity:.95}).bindPopup('Bus stop: '+esc(p[2]))));
- const ML={crimes:crimeL,gp:grp(GP,'gp',p=>`<b>${esc(p[2])}</b><br>GP practice · ${p[3]}`),dent:grp(DE,'dent',p=>`<b>${esc(p[2])}</b><br>Dental practice · ${p[3]}`),
-  sch:grp(SC,'sch',p=>`<b>${esc(p[2])}</b><br>${esc(p[3])} · ${esc(p[4])}${p[5]?'<br>Ofsted: '+esc(p[5]):''}`),heat:L.layerGroup(),bus:busL,rail:L.layerGroup(within(RA,15).map(p=>L.marker([p[0],p[1]],{icon:pinI('rail',32),title:p[2]}).bindPopup('<b>'+esc(p[2])+'</b>'))),park:grp(GS||[],'park',p=>`<b>${esc(p[2])}</b><br>${esc(p[3]||'Greenspace')}`),
-  collisions:(()=>{const g=clus(LAYERS.collisions.c);nearCO.forEach(p=>g.addLayer(L.circleMarker([p[0],p[1]],{radius:p[2]===1?8:p[2]===2?7:6,color:'#fff',weight:1.2,fillColor:sevColor(p[2]),fillOpacity:.92}).bindPopup(`<b>${sevName(p[2])} injury collision</b><br>${p[3]} · ${p[4]} casualt${p[4]===1?'y':'ies'}`)));return g})()};
+ const ML={crimes:crimeL,heat:L.layerGroup()};
+ let extrasReady=false;
+ const pendingLayers=[];
+ buildExtraLayers=()=>{
+  const busL=clus(LAYERS.bus.c);within(ST,3).forEach(p=>busL.addLayer(L.circleMarker([p[0],p[1]],{radius:5,color:'#fff',weight:1.5,fillColor:LAYERS.bus.c,fillOpacity:.95}).bindPopup('Bus stop: '+esc(p[2]))));
+  ML.gp=grp(GP,'gp',p=>`<b>${esc(p[2])}</b><br>GP practice · ${p[3]}`);
+  ML.dent=grp(DE,'dent',p=>`<b>${esc(p[2])}</b><br>Dental practice · ${p[3]}`);
+  ML.sch=grp(SC,'sch',p=>`<b>${esc(p[2])}</b><br>${esc(p[3])} · ${esc(p[4])}${p[5]?'<br>Ofsted: '+esc(p[5]):''}`);
+  ML.bus=busL;
+  ML.rail=L.layerGroup(within(RA,15).map(p=>L.marker([p[0],p[1]],{icon:pinI('rail',32),title:p[2]}).bindPopup('<b>'+esc(p[2])+'</b>')));
+  ML.park=grp(GS||[],'park',p=>`<b>${esc(p[2])}</b><br>${esc(p[3]||'Greenspace')}`);
+  ML.collisions=(()=>{const g=clus(LAYERS.collisions.c);nearCO.forEach(p=>g.addLayer(L.circleMarker([p[0],p[1]],{radius:p[2]===1?8:p[2]===2?7:6,color:'#fff',weight:1.2,fillColor:sevColor(p[2]),fillOpacity:.92}).bindPopup(`<b>${sevName(p[2])} injury collision</b><br>${p[3]} · ${p[4]} casualt${p[4]===1?'y':'ies'}`)));return g})();
+  extrasReady=true;
+  const want=new Set(pendingLayers);
+  document.querySelectorAll('.layers input:checked').forEach(i=>{if(i.dataset.l) want.add(i.dataset.l)});
+  want.forEach(k=>{const l=ML[k]; if(l&&k!=='crimes'&&map&&!map.hasLayer(l)) map.addLayer(l)});
+ };
+ if(extrasApplied) buildExtraLayers();
  map.addLayer(ML.crimes);
- $('.layers').onchange=e=>{const k=e.target.dataset.l,l=ML[k];e.target.checked?map.addLayer(l):map.removeLayer(l);if(k=='heat'){const ci=document.querySelector('input[data-l=crimes]');if(e.target.checked){if(ci.checked){ci.checked=false;map.removeLayer(ML.crimes)}if(!is3d())set3d(true);else heatView()}else if(!ci.checked){ci.checked=true;map.addLayer(ML.crimes)}}m3vis()};
+ $('.layers').onchange=e=>{const k=e.target.dataset.l; if(!k)return; if(!ML[k]&&!extrasReady){if(e.target.checked) pendingLayers.push(k);return} const l=ML[k]; if(!l)return; e.target.checked?map.addLayer(l):map.removeLayer(l);if(k=='heat'){const ci=document.querySelector('input[data-l=crimes]');if(e.target.checked){if(ci.checked){ci.checked=false;map.removeLayer(ML.crimes)}if(!is3d())set3d(true);else heatView()}else if(!ci.checked){ci.checked=true;map.addLayer(ML.crimes)}}m3vis()};
  $('#recentre').onclick=()=>{if(is3d()&&m3)m3.jumpTo(view3d());else map.fitBounds(area.getBounds())};
  $('#mode3d').onclick=()=>set3d(!is3d());const K=window._keep;window._keep=null;
  if(K){const t=K.tab&&$('#'+K.tab);if(t)sel(t);document.querySelectorAll('.layers input').forEach(i=>{const on=K.L.includes(i.dataset.l);if(on!==i.checked){i.checked=on;on?map.addLayer(ML[i.dataset.l]):map.removeLayer(ML[i.dataset.l])}});map.setView(K.ll.c,K.ll.z,{animate:false});
