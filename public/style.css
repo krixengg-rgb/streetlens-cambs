@@ -261,3 +261,18 @@ table.sortable th[aria-sort=descending] button::after{content:" ▼";font-size:1
 
 .simple-view .chip,.simple-geo .chip{border-color:var(--line);background:var(--card,#fff);color:var(--ink)}
 .simple-view .chip:hover,.simple-geo .chip:hover{background:var(--bg,#f4f1ea)}
+
+/* Stage K */
+.more-wrap{margin:2px 0 12px}
+.more-link{background:none;border:0;padding:0;font:inherit;font-size:16px;font-weight:600;color:var(--teal);text-decoration:underline;text-underline-offset:3px;cursor:pointer;border-radius:2px}
+.more-link:hover{text-decoration-thickness:2px}
+.more-link:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+.hero .more-link{color:#fff;text-decoration-color:#ffffffb0}
+.sum-detail{margin:4px 0 18px;max-width:46rem}
+.sum-detail p{margin:0 0 12px;font-size:16px;line-height:1.55;font-weight:500;color:var(--ink)}
+.sum-detail p.muted{color:var(--ink2)}
+.hero .sum-detail p,.hero .sum-detail p.muted{color:#e7f3f1}
+.sum-detail-actions{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin:4px 0 0}
+.hero .sum-detail-actions .btn{background:#fff;color:#14213d;border-color:#fff}
+.hero .sum-detail-actions .btn:hover{background:#f6f4ef}
+@media (max-width:640px){.sum-detail p,.more-link{font-size:15px}}

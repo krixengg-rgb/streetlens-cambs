@@ -748,6 +748,221 @@ function areaSummarySentence(total,yoy,name){
   if(yoy===0) return s+' That is about the same as the 12 months before.';
   return s+` That is ${Math.abs(yoy)}% ${yoy>0?'higher':'lower'} than the 12 months before.`;
 }
+
+function joinAnd(arr){
+  if(!arr||!arr.length) return '';
+  if(arr.length===1) return arr[0];
+  if(arr.length===2) return arr[0]+' and '+arr[1];
+  return arr.slice(0,-1).join(', ')+' and '+arr.at(-1);
+}
+function moreToggleMarkup(){
+  return `<p class="more-wrap"><button type="button" class="more-link" id="sum-more" aria-expanded="false" aria-controls="sum-detail">Do you want to know more?</button></p>
+  <div id="sum-detail" class="sum-detail" hidden>
+    <div class="sum-detail-body" id="sum-detail-body"><p class="muted">Loading a fuller picture…</p></div>
+    <p class="sum-detail-actions">
+      <button type="button" class="more-link" id="sum-less">Show less</button>
+      <button type="button" class="btn" id="see-adv-more">See all the details in Advanced view</button>
+    </p>
+  </div>`;
+}
+function wireMore(loader){
+  const btn=$('#sum-more'), panel=$('#sum-detail'), body=$('#sum-detail-body'), less=$('#sum-less'), adv=$('#see-adv-more');
+  if(!btn||!panel)return;
+  let loaded=false, loading=false;
+  const setOpen=on=>{
+    panel.hidden=!on;
+    btn.setAttribute('aria-expanded', on?'true':'false');
+  };
+  const open=async()=>{
+    setOpen(true);
+    if(loaded||loading) return;
+    loading=true;
+    try{
+      const html=await loader();
+      if(body&&$('#sum-detail-body')===body) body.innerHTML=html||'<p>A fuller picture is not available just now.</p>';
+      loaded=true;
+    }catch{
+      if(body&&$('#sum-detail-body')===body) body.innerHTML='<p>A fuller picture could not be loaded just now.</p>';
+    }
+    loading=false;
+  };
+  const close=()=>{setOpen(false); btn.focus()};
+  btn.onclick=()=>{btn.getAttribute('aria-expanded')==='true'?close():open()};
+  if(less) less.onclick=close;
+  if(adv) adv.onclick=()=>setMode('advanced');
+}
+function typeChangeClause(ty){
+  if(!ty||ty.thin||ty.yoy==null) return '';
+  if(Math.abs(ty.yoy)<0.5) return ', about the same as the year before';
+  return `, ${Math.abs(ty.yoy)}% ${ty.yoy>0?'higher':'lower'} than the year before`;
+}
+function moreParas(parts){return parts.filter(Boolean).map(p=>`<p>${p}</p>`).join('')}
+async function moreTextArea(dist){
+  const isAll=!dist, a=dist||S.overview;
+  const period=`${mname(S.months[0])} to ${mname(S.months.at(-1))}`;
+  const where=isAll?'across Cambridgeshire and Peterborough':`in ${esc(a.name)}`;
+  const paras=[];
+  paras.push(`In the 12 months from ${period}, ${fmt(a.total)} crimes were recorded ${where} — about ${fmt(Math.round(a.total/12))} a month. That is ${a.rate} recorded crimes per 1,000 residents${isAll?'':`, compared with ${S.overview.rate} across the county`}.`);
+  if(a.yoy!=null){
+    if(a.yoy===0) paras.push('That is about the same as the 12 months before.');
+    else paras.push(`That is ${Math.abs(a.yoy)}% ${a.yoy>0?'higher':'lower'} than the 12 months before. This comparison uses the same ${isAll?'county':'district'} totals in both years.`);
+  }
+  const types=Object.entries(a.byType||{}).sort((x,y)=>y[1]-x[1]).slice(0,3);
+  if(types.length){
+    const bits=types.map(([k,n])=>`${esc(cn(k))} (${fmt(n)}${typeChangeClause((a.typeYoy||{})[k])})`);
+    paras.push(`The most recorded types were ${joinAnd(bits)}.`);
+  }
+  if(a.outcomes){
+    const sol=solveOf(a), pos=a.outcomes[0]+a.outcomes[1], nonAsb=a.outcomes.reduce((x,y)=>x+y,0)-a.outcomes[6];
+    if(nonAsb){
+      const county=solveOf(S.overview);
+      paras.push(`The solve rate was ${sol.toFixed(1)}% (${fmt(pos)} of ${fmt(nonAsb)} crimes excluding anti-social behaviour, which has no outcome). That is the share whose latest recorded outcome was a charge, summons or out-of-court resolution.${isAll?'':` The county figure is ${county.toFixed(1)}%.`} Many cases are still under investigation, especially in recent months.`);
+    }
+  }
+  if(a.monthly){
+    const loc=monthIndex(a.monthly,S.months);
+    if(loc.vals.some(v=>v>0)){
+      const peakI=loc.idx.reduce((b,v,i)=>v>loc.idx[b]?i:b,0);
+      const lowI=loc.idx.reduce((b,v,i)=>v<loc.idx[b]?i:b,0);
+      paras.push(`${mname(S.months[peakI])} was the busiest month, with ${fmt(loc.vals[peakI])} recorded crimes (${loc.idx[peakI]}% of this area’s monthly average). ${mname(S.months[lowI])} was the quietest, with ${fmt(loc.vals[lowI])}. A peak can reflect reporting and police activity as well as offending.`);
+    }
+  }
+  if(isAll&&S.districts&&S.districts.length){
+    const ranked=[...S.districts].sort((x,y)=>y.rate-x.rate);
+    paras.push(`Among the six districts, ${esc(ranked[0].name)} has the highest recorded rate at ${ranked[0].rate} per 1,000, and ${esc(ranked.at(-1).name)} the lowest at ${ranked.at(-1).rate}. Rates use resident population, so a city centre often looks higher than a rural district.`);
+  }
+  try{
+    const he=await lj('home_extras');
+    if(he&&he.hotspots){
+      let spots;
+      if(isAll) spots=he.hotspots.spots;
+      else{
+        const d=(he.hotspots.districts||[]).find(x=>x.name===a.name||x.code===a.code);
+        spots=d&&d.spots;
+      }
+      if(spots&&spots.length){
+        const top=spots.slice(0,3).map(s=>{
+          const typ=spotType(s);
+          return `${esc(spotName(s))} (${fmt(spotN(s))}${typ?`, most often ${esc(typ)}`:''})`;
+        });
+        paras.push(`The busiest published snap points ${isAll?'in the county':`in ${esc(a.name)}`} were ${joinAnd(top)}. These are anonymised “on or near” locations, not exact addresses, over the same 12 months.`);
+      }
+    }
+    if(he&&he.collisions){
+      const C=he.collisions;
+      const row=isAll?C.overview:((C.districts||[]).find(x=>x.name===a.name||x.code===a.code));
+      if(row&&row.n){
+        const years=(C.meta&&C.meta.years||[2024,2025]).join(' and ');
+        paras.push(`On the roads, ${fmt(row.n)} personal-injury collisions were recorded in calendar years ${years} (${fmt(row.fatal)} fatal, ${fmt(row.serious)} serious, ${fmt(row.slight)} slight), with ${fmt(row.cas)} casualties. These are STATS19 figures, not the same window as the crime counts, and damage-only bumps are not included.`);
+      }
+    }
+  }catch{}
+  paras.push('Police anonymise locations, so a pin is a nearby street or landmark, not an exact address. Police data is published about two months after each month ends. None of these figures is a safety score.');
+  return moreParas(paras);
+}
+async function moreTextPostcode(ctx){
+  const {la,lo,postcode,rMi,nearAll,cats,by,row,dist,prevPromise,SC,gen}=ctx;
+  const paras=[];
+  const period=`${mname(S.months[0])} to ${mname(S.months.at(-1))}`;
+  let pool=nearAll, at={[rMi]:nearAll.length};
+  try{
+    const pts2=await loadPointsNear(la,lo,2);
+    if(gen!==_routeGen) return '';
+    pool=pts2.filter(p=>inWindow(p,12));
+    at={'0.5':pool.filter(p=>hav(la,lo,p[0],p[1])<=0.5).length, 1:pool.filter(p=>hav(la,lo,p[0],p[1])<=1).length, 2:pool.length};
+  }catch{}
+  if(at['0.5']!=null&&at[1]!=null&&at[2]!=null){
+    paras.push(`In the 12 months from ${period}, ${fmt(nearAll.length)} crimes were recorded within ${rLabel(rMi)} of ${esc(postcode)}. In the same window there were ${fmt(at['0.5'])} within ½ mile, ${fmt(at[1])} within 1 mile and ${fmt(at[2])} within 2 miles.`);
+  }else{
+    paras.push(`In the 12 months from ${period}, ${fmt(nearAll.length)} crimes were recorded within ${rLabel(rMi)} of ${esc(postcode)}.`);
+  }
+  try{
+    const prev=await (prevPromise||loadPrevPointsNear(la,lo,rMi));
+    if(gen!==_routeGen) return '';
+    const prevN=prev&&prev.pts?prev.pts.length:null;
+    if(prevN!=null){
+      if(nearAll.length<20||prevN<20) paras.push(`In the 12 months before, ${fmt(prevN)} were recorded in the same radius — too few in one or both years for a reliable percentage change. This counts pins in the same radius, not an official neighbourhood total.`);
+      else{
+        const ch=(nearAll.length-prevN)/prevN*100, abs=Math.abs(ch);
+        const n=abs>=10?Math.round(abs):(Math.round(abs*10)/10);
+        if(abs<0.5) paras.push(`That is about the same as the 12 months before (${fmt(prevN)}), counting pins in the same radius, not an official neighbourhood total.`);
+        else paras.push(`That is ${n}% ${ch>0?'higher':'lower'} than the 12 months before (${fmt(prevN)}), counting pins in the same radius, not an official neighbourhood total.`);
+      }
+    }else if(dist&&dist.yoy!=null){
+      paras.push(`A year-on-year figure for this radius could not be loaded. ${yoyLine(dist.yoy,dist.name)}`);
+    }
+  }catch{
+    if(dist&&dist.yoy!=null) paras.push(`A year-on-year figure for this radius could not be loaded. ${yoyLine(dist.yoy,dist.name)}`);
+  }
+  const top=Object.entries(by||{}).sort((x,y)=>y[1]-x[1]).slice(0,3);
+  if(top.length) paras.push(`The most recorded types within ${rLabel(rMi)} were ${joinAnd(top.map(([k,n])=>`${esc(cn(k))} (${fmt(n)})`))}.`);
+  if(row&&row.rate!=null){
+    const bw=bandWord(row.band);
+    let s=`The neighbourhood recorded-crime rate is ${row.rate} per 1,000 residents, which is ${esc(bw||'unbanded')} among Cambridgeshire and Peterborough neighbourhoods`;
+    if(row.n!=null&&row.pop!=null) s+=` (about ${fmt(row.n)} crimes, population ${fmt(row.pop)})`;
+    if(row.pct!=null) s+=`. That is a lower recorded rate than ${row.pct}% of local neighbourhoods`;
+    s+=`. This is an approximate rate — each published crime is assigned to the nearest neighbourhood centroid because police anonymise locations — and it is not a safety score. Town centres often look higher because visitors and shoppers are not counted as residents.`;
+    paras.push(s);
+  }
+  const oc=[0,0,0,0,0,0,0];
+  nearAll.forEach(p=>{if(p[4]!=null) oc[p[4]]++});
+  const nonAsb=nearAll.length-oc[6], pos=oc[0]+oc[1], solve=nonAsb?pos/nonAsb*100:null;
+  if(solve!=null){
+    paras.push(`The solve rate within ${rLabel(rMi)} was ${solve.toFixed(1)}% (${fmt(pos)} of ${fmt(nonAsb)} crimes excluding anti-social behaviour). ${fmt(pos)} were charged or resolved, ${fmt(oc[2])} had no suspect identified, and ${fmt(oc[4])} were still under investigation. This is the latest published outcome, not a courtroom result.`);
+  }
+  try{
+    const HS=await lj('hotspots');
+    if(gen!==_routeGen) return '';
+    const nearSpots=HS&&HS.spots?HS.spots.map(s=>{const d=hav(la,lo,s[0],s[1]);return d<=rMi?Object.assign([...s],{d}):null}).filter(Boolean).sort((a,b)=>spotN(b)-spotN(a)):[];
+    if(nearSpots.length){
+      const bits=nearSpots.slice(0,3).map(s=>{
+        const typ=spotType(s);
+        return `${esc(spotName(s))} (${fmt(spotN(s))}${typ?`, most often ${esc(typ)}`:''})`;
+      });
+      paras.push(`The busiest published snap points within ${rLabel(rMi)} were ${joinAnd(bits)}. These are “on or near” a street or landmark, not exact addresses, and the counts cover the latest 12 months.`);
+    }
+  }catch{}
+  try{
+    const RA=await lj('rail').catch(()=>[]);
+    if(gen!==_routeGen) return '';
+    const n250=(lat,lon)=>pool.filter(c=>hav(lat,lon,c[0],c[1])<=0.1553).length;
+    const scs=nearest(SC||[],la,lo,3).filter(s=>s.d<=2);
+    const rails=nearest(RA||[],la,lo,3).filter(s=>s.d<=2);
+    const schoolBits=scs.slice(0,2).map(s=>`${esc(s[2])} (${s.d.toFixed(1)} mi, ${fmt(n250(s[0],s[1]))} recorded crimes within 250m)`);
+    const railBits=rails.slice(0,1).map(s=>`${esc(s[2])} (${s.d.toFixed(1)} mi, ${fmt(n250(s[0],s[1]))} recorded crimes within 250m)`);
+    if(schoolBits.length||railBits.length){
+      let s='';
+      if(schoolBits.length) s+=`Nearby schools include ${joinAnd(schoolBits)}. `;
+      if(railBits.length) s+=`The nearest station is ${railBits[0]}. `;
+      s+='A count within 250m of a school or station is not a count of incidents on that site, because pins are snapped to a public location.';
+      paras.push(s);
+    }
+  }catch{}
+  try{
+    const CO=await lj('collisions');
+    if(gen!==_routeGen) return '';
+    const nearCO=CO&&CO.points?CO.points.filter(p=>hav(la,lo,p[0],p[1])<=rMi):[];
+    if(nearCO.length){
+      const fatal=nearCO.filter(p=>p[2]===1).length;
+      const serious=nearCO.filter(p=>p[2]===2).length;
+      const slight=nearCO.filter(p=>p[2]===3).length;
+      const cas=nearCO.reduce((s,p)=>s+(p[4]||0),0);
+      const years=(CO.meta&&CO.meta.years||[2024,2025]).join(' and ');
+      paras.push(`Within ${rLabel(rMi)} there were ${fmt(nearCO.length)} personal-injury collisions in calendar years ${years} (${fmt(fatal)} fatal, ${fmt(serious)} serious, ${fmt(slight)} slight), with ${fmt(cas)} casualties. These are STATS19 figures, not the same window as the crime counts, and damage-only bumps are not included.`);
+    }
+  }catch{}
+  if(nearAll.length>=20){
+    const mon={}; S.months.forEach(m=>mon[m]=0);
+    nearAll.forEach(p=>{if(S.months[p[3]]) mon[S.months[p[3]]]++});
+    const loc=monthIndex(mon,S.months);
+    const peakI=loc.idx.reduce((b,v,i)=>v>loc.idx[b]?i:b,0);
+    const lowI=loc.idx.reduce((b,v,i)=>v<loc.idx[b]?i:b,0);
+    paras.push(`Within this radius, ${mname(S.months[peakI])} was the busiest month (${fmt(loc.vals[peakI])} crimes, ${loc.idx[peakI]}% of the local monthly average) and ${mname(S.months[lowI])} was the quietest (${fmt(loc.vals[lowI])}). A peak can reflect reporting and police activity as well as offending.`);
+  }
+  paras.push('Police anonymise locations, so a pin is a nearby street or landmark, not an exact address. Distances are straight-line. Police data is published about two months after each month ends. None of these figures is a safety score.');
+  return moreParas(paras);
+}
+
 const HINT_KEY='sl-hint-v1';
 function maybeHint(){
   try{if(localStorage.getItem(HINT_KEY))return}catch{return}
@@ -894,7 +1109,8 @@ function homeSimple(dist){
   app.innerHTML=`<section class="hero simple-hero"><div class="in">
     <span class="eyebrow">${ic('pin',16)} ${isAll?'Cambridgeshire &amp; Peterborough':esc(a.name)} · ${period}</span>
     <h1>${isAll?'A simple look at crime in your area':esc(a.name)+' at a glance'}</h1>
-    <p class="plain-sum">${areaSummarySentence(a.total,a.yoy,isAll?null:a.name)}</p>
+    <p class="plain-sum" id="plain-sum">${areaSummarySentence(a.total,a.yoy,isAll?null:a.name)}</p>
+    ${moreToggleMarkup()}
     <p class="lead">${isAll?'Search a postcode for a short, plain-English picture of recorded crime nearby.':'A short picture of recorded crime in '+esc(a.name)+'. Search a postcode for street-level detail.'}</p>
     ${searchBox()}
   </div></section>
@@ -914,6 +1130,7 @@ function homeSimple(dist){
   wireSearch();
   wireSeeDetails();
   maybeHint();
+  wireMore(()=>moreTextArea(dist));
   requestAnimationFrame(()=>requestAnimationFrame(()=>fillSimpleOverviewMap(dist)));
 }
 
@@ -982,6 +1199,7 @@ async function dashboardSimple(raw){
     <p class="eyebrow">${ic('pin',16)} ${esc(R.admin_ward||'')}${R.admin_ward?', ':''}${esc(ad)} · ${period}</p>
     <h1>${postcode}</h1>
     <p class="plain-sum" id="plain-sum">In the last 12 months, ${fmt(nearAll.length)} crimes were recorded within ${rLabel(rMi)} of ${esc(postcode)}. Looking up the same radius a year earlier…</p>
+    ${moreToggleMarkup()}
     <div class="ctl" style="margin:8px 0 16px">${radiusBar(rMi)}</div>
     <p class="simple-geo"><button type="button" class="chip" id="geo" data-tip="Use your device location to find the nearest Cambridgeshire or Peterborough postcode. Your location is sent only to postcodes.io for that lookup and is not stored.">${ic('loc',18)} Use my location</button> <span class="err" id="serr" role="alert"></span></p>
     <div class="kpis">
@@ -1014,9 +1232,11 @@ async function dashboardSimple(raw){
   document.querySelectorAll('.rbtn[data-r]').forEach(b=>b.onclick=()=>{setR(parseFloat(b.dataset.r));dashboardSimple(postcode)});
   const u=new URL(location.href);u.search=pcUrl(postcode);history.replaceState(null,'',u);
   loadNeighbourhoodSimple(la,lo,$('#nbhood'));
+  const prevP=loadPrevPointsNear(la,lo,rMi);
+  wireMore(()=>moreTextPostcode({la,lo,postcode,rMi,nearAll,cats,by,row,dist,prevPromise:prevP,SC,gen}));
   (async()=>{
     try{
-      const prev=await loadPrevPointsNear(la,lo,rMi);
+      const prev=await prevP;
       if(gen!==_routeGen)return;
       const n=prev&&prev.pts?prev.pts.length:null;
       const sent=radiusCompareSentence(nearAll.length,n,rMi,postcode);
