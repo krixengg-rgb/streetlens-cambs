@@ -276,3 +276,18 @@ table.sortable th[aria-sort=descending] button::after{content:" ▼";font-size:1
 .hero .sum-detail-actions .btn{background:#fff;color:#14213d;border-color:#fff}
 .hero .sum-detail-actions .btn:hover{background:#f6f4ef}
 @media (max-width:640px){.sum-detail p,.more-link{font-size:15px}}
+
+/* Stage L — Street View links (keyless Google Maps URLs, no embed) */
+.sv-link{color:var(--teal-d);font-weight:600;text-decoration:underline;text-underline-offset:3px;display:inline-flex;align-items:center;gap:4px;min-height:44px;border-radius:2px}
+.sv-link:hover{text-decoration-thickness:2px}
+.sv-link:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+.sv-link svg{flex-shrink:0;display:block}
+.leaflet-popup-content .sv-link,.maplibregl-popup-content .sv-link{min-height:36px}
+.mapctl button.sv-btn,.sl-sv-ctl .sv-ctl{width:auto;min-width:44px;height:44px;padding:0 10px;gap:6px;font:inherit;font-size:13px;font-weight:700;white-space:nowrap;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.mapctl button.sv-btn:hover,.sl-sv-ctl .sv-ctl:hover{background:var(--hover)}
+.mapctl button.sv-btn:focus-visible,.sl-sv-ctl .sv-ctl:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.sl-sv-ctl{clear:both}
+.hotlist .sv-link,.near .sv-link{font-size:13px}
+@media (max-width:640px){
+  .mapctl button.sv-btn,.sl-sv-ctl .sv-ctl{font-size:12px;padding:0 8px}
+}

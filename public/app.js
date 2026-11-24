@@ -12,7 +12,7 @@ const IP={search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',sh
 heart:'<path d="M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z"/><path d="M9 11h6M12 8v6"/>',tooth:'<path d="M7 4c-2 0-3 2-3 4 0 3 1 4 2 8 .5 2 1 4 2 4s1.5-3 2-5c.3-1 1.7-1 2 0 .5 2 1 5 2 5s1.5-2 2-4c1-4 2-5 2-8 0-2-1-4-3-4-1.5 0-3 1-5 1S8.5 4 7 4z"/>',
 school:'<path d="M3 9l9-5 9 5-9 5z"/><path d="M7 11v5c3 2 7 2 10 0v-5"/>',bus:'<rect x="5" y="3" width="14" height="15" rx="3"/><path d="M5 11h14M8 21v-3M16 21v-3"/><circle cx="8.5" cy="14.5" r=".8"/><circle cx="15.5" cy="14.5" r=".8"/>',
 train:'<rect x="6" y="3" width="12" height="14" rx="3"/><path d="M6 10h12M9 21l1.5-4M15 21l-1.5-4"/>',home:'<path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/>',chart:'<path d="M4 20V4M4 20h16"/><path d="M7 15l4-4 3 3 5-6"/>',
-pin:'<path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',loc:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/>',
+pin:'<path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',sv:'<circle cx="12" cy="5.5" r="2.2"/><path d="M12 8.2v4.3M9 20.5l3-8 3 8M7.5 13.5h9"/>',loc:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/>',
 people:'<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2c3 .2 5.5 2.6 5.5 5.8"/>',
 gavel:'<path d="M14 4l6 6M11 7l6 6M12.5 5.5l-5 5M18.5 11.5l-5 5M3 21l7-7"/>',hand:'<path d="M8 13V5.5a1.5 1.5 0 013 0V11M11 10V4.5a1.5 1.5 0 013 0V11M14 10V5.5a1.5 1.5 0 013 0V14c0 4-3 7-6.5 7S5 19 4 16l-1.5-3.5a1.5 1.5 0 012.6-1.4L8 14"/>',
 expand:'<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',shrink:'<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>',target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
@@ -308,7 +308,7 @@ function hotspotCard(spots, opts){
   if(!spots||!spots.length)return `<div class="card" id="hotspots"><p class="muted">No location list is available for this view.</p></div>`;
   const rows=spots.slice(0,opts.limit||10);
   return `<div class="card" id="hotspots"><div class="row"><h3>${opts.title||'Most recorded locations'}</h3><span class="ctl">${csvBtn(opts.csvId||'hotspots',[['Location','Crimes','Most common type'],...rows.map(s=>[spotName(s),spotN(s),spotType(s)])],'the most recorded locations')}${tipI('Police anonymise each crime to a nearby street or landmark. A name is that snap point, not the exact address of an offence. Two rows can share a name when the force uses the same label at different points (for example two parking areas).')}</span></div>
-  <ol class="hotlist">${rows.map((s,i)=>`<li>${opts.clickable?`<button type="button" class="tlink hot-go" data-lat="${spotLat(s)}" data-lon="${spotLon(s)}">${esc(spotName(s))}</button>`:`<b>${esc(spotName(s))}</b>`}<span class="muted">${esc(spotType(s))}${s.d!=null?` · ${s.d.toFixed(2)} mi`:''}</span><b class="n">${fmt(spotN(s))}</b></li>`).join('')}</ol>
+  <ol class="hotlist">${rows.map((s,i)=>`<li>${opts.clickable?`<button type="button" class="tlink hot-go" data-lat="${spotLat(s)}" data-lon="${spotLon(s)}">${esc(spotName(s))}</button>`:`<b>${esc(spotName(s))}</b>`}<span class="muted">${esc(spotType(s))}${s.d!=null?` · ${s.d.toFixed(2)} mi`:''} · ${svLink(spotLat(s),spotLon(s),{approx:true})}</span><b class="n">${fmt(spotN(s))}</b></li>`).join('')}</ol>
   <p class="muted">${opts.note||'Counts are recorded crimes at each published snap point over the latest 12 months.'}</p></div>`;
 }
 
@@ -1062,6 +1062,71 @@ async function goPlace(it){try{
 
 function simpleCluster(){return L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50,iconCreateFunction:g=>{const n=g.getChildCount(),s=n<10?44:n<100?48:54;return L.divIcon({className:'',html:`<div class="cl" style="width:${s}px;height:${s}px;background:${LAYERS.crimes.c}">${n}</div>`,iconSize:[s,s]})}})}
 function osmLayer(){return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'})}
+function svUrl(lat,lng){
+  const a=Number(lat), b=Number(lng);
+  if(!isFinite(a)||!isFinite(b)) return '';
+  return 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+a.toFixed(6)+','+b.toFixed(6);
+}
+function svLink(lat,lng,opts){
+  opts=opts||{};
+  const href=svUrl(lat,lng); if(!href) return '';
+  const approx=!!opts.approx;
+  const label=opts.label||'Street View';
+  return `<a class="sv-link" href="${href}" target="_blank" rel="noopener" aria-label="${esc(label+(approx?' at an approximate location':''))}">${ic('sv',16)} ${esc(label)}</a>${approx?' <span class="muted">approximate location</span>':''}`;
+}
+function openStreetView(lat,lng){
+  const href=svUrl(lat,lng); if(!href) return;
+  window.open(href,'_blank','noopener,noreferrer');
+}
+function mapCentre(){
+  if(typeof is3d==='function'&&is3d()&&typeof m3!=='undefined'&&m3){const c=m3.getCenter(); return {lat:c.lat,lng:c.lng}}
+  if(typeof map!=='undefined'&&map){const c=map.getCenter(); return {lat:c.lat,lng:c.lng}}
+  return null;
+}
+function wireStreetViewButton(){
+  const b=$('#sv-btn'); if(!b) return;
+  b.onclick=()=>{const c=mapCentre(); if(c) openStreetView(c.lat,c.lng)};
+}
+function wireMapStreetViewContext(leafletMap){
+  if(!leafletMap||leafletMap._svCtx) return;
+  leafletMap._svCtx=true;
+  leafletMap.on('contextmenu', e=>{
+    const oe=e.originalEvent; if(oe&&oe.preventDefault) oe.preventDefault();
+    if(e.latlng) openStreetView(e.latlng.lat,e.latlng.lng);
+  });
+  let press=null, sx=0, sy=0;
+  const clear=()=>{if(press){clearTimeout(press);press=null}};
+  leafletMap.on('touchstart', e=>{
+    const touch=e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches[0];
+    sx=touch?touch.clientX:0; sy=touch?touch.clientY:0;
+    const ll=e.latlng;
+    clear();
+    press=setTimeout(()=>{press=null; if(ll) openStreetView(ll.lat,ll.lng)}, 600);
+  });
+  leafletMap.on('touchmove', e=>{
+    const touch=e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches[0];
+    if(!touch||!press) return;
+    if(Math.hypot(touch.clientX-sx,touch.clientY-sy)>12) clear();
+  });
+  leafletMap.on('touchend touchcancel dragstart movestart', clear);
+}
+function addStreetViewControl(leafletMap){
+  if(!leafletMap||!window.L) return;
+  const C=L.Control.extend({
+    options:{position:'topright'},
+    onAdd(){
+      const div=L.DomUtil.create('div','sl-sv-ctl');
+      div.innerHTML='<button type="button" class="sv-ctl" id="sv-btn" aria-label="Open Street View at the current map centre" title="Open Google Street View at the centre of this map, in a new tab. Imagery is Google\u2019s and may be dated.">'+ic('sv',16)+' Street View</button>';
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.disableScrollPropagation(div);
+      const btn=div.querySelector('button');
+      if(btn) btn.onclick=()=>{const c=leafletMap.getCenter(); openStreetView(c.lat,c.lng)};
+      return div;
+    }
+  });
+  new C().addTo(leafletMap);
+  wireMapStreetViewContext(leafletMap);
+}
 async function districtExtent(name){
   const lr=await lj('lsoa_rates');
   const pts=Object.values(lr.lsoa).filter(r=>r.la===name&&r.lat!=null);
@@ -1100,7 +1165,7 @@ async function fillSimpleOverviewMap(dist){
     if(gen!==_routeGen)return;
     const cats=S.categories.map(c=>c.id);
     const g=simpleCluster();
-    pts.forEach(p=>g.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}) .bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}`)));
+    pts.forEach(p=>g.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}) .bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br>${svLink(p[0],p[1],{approx:true})}`)));
     map.addLayer(g);
   }catch{if($('#smap')===el) el.innerHTML='<p class="muted">The map could not be loaded just now.</p>'}
 }
@@ -1281,10 +1346,11 @@ async function dashboardSimple(raw){
     map=L.map('smap',{zoomControl:true}).setView([la,lo],rMi<=0.5?15:rMi<=1?14:13);
     osmLayer().addTo(map);
     L.circle([la,lo],{radius:rMi*1609.34,color:'#0f766e',weight:2,fillOpacity:.04}).addTo(map);
-    L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:44px;height:44px;background:#14213d">${ic('pin',20)}</div>`,iconSize:[44,44],iconAnchor:[22,22]}),zIndexOffset:1000,keyboard:true,title:postcode}).addTo(map).bindPopup('<b>'+postcode+'</b>');
+    L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:44px;height:44px;background:#14213d">${ic('pin',20)}</div>`,iconSize:[44,44],iconAnchor:[22,22]}),zIndexOffset:1000,keyboard:true,title:postcode}).addTo(map).bindPopup('<b>'+postcode+'</b><br>'+svLink(la,lo,{approx:false}));
     const g=simpleCluster();
-    nearAll.forEach(p=>g.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}) .bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}`)));
+    nearAll.forEach(p=>g.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}) .bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br>${svLink(p[0],p[1],{approx:true})}`)));
     map.addLayer(g);
+    addStreetViewControl(map);
   }catch{const sm=$('#smap'); if(sm) sm.innerHTML='<p class="muted">The map could not be loaded just now.</p>'}
 }
 
@@ -1410,7 +1476,7 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
   coRow={n:nearCO.length,fatal:nearCO.filter(p=>p[2]===1).length,serious:nearCO.filter(p=>p[2]===2).length,slight:nearCO.filter(p=>p[2]===3).length,cas:nearCO.reduce((s,p)=>s+(p[4]||0),0)};
  }
  // typical 1-mile count across all points in district is costly; compare with district density via share of district crime per sq mile is misleading, so compare with county median of 1-mile counts is skipped. Use district/county rates for context.
- const nl=(arr,key,meta)=>`<ol class="near">${arr.map((x,k)=>`<li><span class="ico" style="background:${LAYERS[key].c}">${ic(LAYERS[key].i,18)}</span><b>${esc(x[2])}</b><span class="d">${x.d.toFixed(1)} mi</span><span class="m">${meta(x)}</span></li>`).join('')}</ol>`;
+ const nl=(arr,key,meta)=>`<ol class="near">${arr.map((x,k)=>`<li><span class="ico" style="background:${LAYERS[key].c}">${ic(LAYERS[key].i,18)}</span><b>${esc(x[2])}</b><span class="d">${x.d.toFixed(1)} mi</span><span class="m">${meta(x)}${(key==='sch'||key==='rail')?`<br>${svLink(x[0],x[1])}`:''}</span></li>`).join('')}</ol>`;
  const schip=(icon,lab,val,tab,t)=>`<button class="schip" data-go="${tab}" data-tip="${esc(t)}">${ic(icon,18)}<span>${lab}</span><b>${val}</b></button>`;
  app.innerHTML=`<div class="sumbar"><div class="wrap"><div><h1>${postcode}</h1><div class="where">${esc(R.admin_ward||'')}${R.admin_ward?', ':''}${esc(ad)}</div></div>
  <div class="schips">${schip('shield','Crimes '+ (rMi===0.5?'½':rMi) +' mi',fmt(nearAll.length),'crime','Crimes recorded within '+rMi+' mile(s) in '+wLabel(w)+'. Open the Crime tab.')}
@@ -1440,7 +1506,7 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
   </ul></aside>
  <div class="dash"><div class="mapcol"><div class="maptools">${radiusBar(rMi)}${windowBar(w)}${typeFilterBar(by,tf)}</div><div class="layers" role="group" aria-label="Map layers">${Object.entries(LAYERS).map(([k,v])=>`<label class="lt" style="color:${v.c}" data-tip="${esc(v.t)}"><input type="checkbox" data-l="${k}" ${k=='crimes'?'checked':''}><span class="dot" style="background:${v.c}">${ic(v.i,13)}</span><span class="t">${v.n}</span></label>`).join('')}</div>
  <div class="mapbox" id="mapbox"><div id="map" role="region" aria-label="Map of ${postcode} and surroundings"></div>
- <div class="mapctl"><button id="fs" aria-label="Full screen map" data-tip="Expand the map to full screen. Press Esc or tap again to exit.">${ic('expand')}</button><button id="mode3d" aria-pressed="false" aria-label="Switch to 3D map" data-tip="Switch between the flat 2D map and a tilted 3D view with extruded buildings. In 3D, drag with two fingers or right-click to tilt and rotate.">3D</button><button id="recentre" aria-label="Recentre map" data-tip="Return the map to ${postcode} and the search area.">${ic('target')}</button></div>
+ <div class="mapctl"><button id="fs" aria-label="Full screen map" data-tip="Expand the map to full screen. Press Esc or tap again to exit.">${ic('expand')}</button><button id="mode3d" aria-pressed="false" aria-label="Switch to 3D map" data-tip="Switch between the flat 2D map and a tilted 3D view with extruded buildings. In 3D, drag with two fingers or right-click to tilt and rotate.">3D</button><button id="recentre" aria-label="Recentre map" data-tip="Return the map to ${postcode} and the search area.">${ic('target')}</button><button type="button" id="sv-btn" class="sv-btn" aria-label="Open Street View at the current map centre" title="Open Google Street View at the centre of the map, in a new tab. Imagery is Google’s and may be dated. No imagery is embedded on this page.">${ic('sv',16)} Street View</button></div>
  <div class="legend" aria-label="Map legend"><span><i style="background:#0f766e;border-radius:0;height:3px;width:14px;box-shadow:none;border:0"></i>${rMi===0.5?'½':rMi} mi area</span>${Object.values(LAYERS).map(v=>`<span><i style="background:${v.c}"></i>${v.n}</span>`).join('')}</div></div>
  <p class="muted map-alt"><a href="#maptable">View these crimes as a table</a></p></div>
  <div class="panel"><div class="tabs" role="tablist" aria-label="Area topics">${[['crime','Crime','shield'],['out','Outcomes','gavel'],['health','Health','heart'],['schools','Schools','school'],['transport','Transport','bus'],['homes','Homes','home'],['police','Police','people']].map(([k,n,i],x)=>`<button class="tab" role="tab" id="t-${k}" aria-controls="p-${k}" aria-selected="${!x}" tabindex="${x?-1:0}">${ic(i,17)}${n}</button>`).join('')}</div>
@@ -1594,7 +1660,7 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
  L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:34px;height:34px;background:#14213d">${ic('pin',18)}</div>`,iconSize:[34,34],iconAnchor:[17,17]}),zIndexOffset:1000,keyboard:true,title:postcode}).addTo(map).bindPopup('<b>'+postcode+'</b>');
  const clus=c=>L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50,iconCreateFunction:g=>{const n=g.getChildCount(),s=n<10?44:n<100?48:54;return L.divIcon({className:'',html:`<div class="cl" style="width:${s}px;height:${s}px;background:${c}">${n}</div>`,iconSize:[s,s]})}});
  const pinI=(k,s=28)=>L.divIcon({className:'',html:`<div class="pin" style="width:${s}px;height:${s}px;background:${LAYERS[k].c}">${ic(LAYERS[k].i,s*.55|0)}</div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});
- const crimeL=clus(LAYERS.crimes.c);near.forEach(p=>crimeL.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}).bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br><i>${S.outcomeBuckets[p[4]]}</i>`)));
+ const crimeL=clus(LAYERS.crimes.c);near.forEach(p=>crimeL.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}).bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br><i>${S.outcomeBuckets[p[4]]}</i><br>${svLink(p[0],p[1],{approx:true})}`)));
  const within=(arr,mi)=>arr.filter(p=>hav(la,lo,p[0],p[1])<=mi);
  const grp=(arr,k,pop,mi=5)=>{const g=clus(LAYERS[k].c);within(arr,mi).forEach(p=>g.addLayer(L.marker([p[0],p[1]],{icon:pinI(k),title:p[2]}).bindPopup(pop(p))));return g};
  const ML={crimes:crimeL,heat:L.layerGroup()};
@@ -1604,9 +1670,9 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
   const busL=clus(LAYERS.bus.c);within(ST,3).forEach(p=>busL.addLayer(L.circleMarker([p[0],p[1]],{radius:5,color:'#fff',weight:1.5,fillColor:LAYERS.bus.c,fillOpacity:.95}).bindPopup('Bus stop: '+esc(p[2]))));
   ML.gp=grp(GP,'gp',p=>`<b>${esc(p[2])}</b><br>GP practice · ${p[3]}`);
   ML.dent=grp(DE,'dent',p=>`<b>${esc(p[2])}</b><br>Dental practice · ${p[3]}`);
-  ML.sch=grp(SC,'sch',p=>`<b>${esc(p[2])}</b><br>${esc(p[3])} · ${esc(p[4])}${p[5]?'<br>Ofsted: '+esc(p[5]):''}`);
+  ML.sch=grp(SC,'sch',p=>`<b>${esc(p[2])}</b><br>${esc(p[3])} · ${esc(p[4])}${p[5]?'<br>Ofsted: '+esc(p[5]):''}<br>${svLink(p[0],p[1])}`);
   ML.bus=busL;
-  ML.rail=L.layerGroup(within(RA,15).map(p=>L.marker([p[0],p[1]],{icon:pinI('rail',32),title:p[2]}).bindPopup('<b>'+esc(p[2])+'</b>')));
+  ML.rail=L.layerGroup(within(RA,15).map(p=>L.marker([p[0],p[1]],{icon:pinI('rail',32),title:p[2]}).bindPopup('<b>'+esc(p[2])+'</b><br>'+svLink(p[0],p[1]))));
   ML.park=grp(GS||[],'park',p=>`<b>${esc(p[2])}</b><br>${esc(p[3]||'Greenspace')}`);
   ML.collisions=(()=>{const g=clus(LAYERS.collisions.c);nearCO.forEach(p=>g.addLayer(L.circleMarker([p[0],p[1]],{radius:p[2]===1?8:p[2]===2?7:6,color:'#fff',weight:1.2,fillColor:sevColor(p[2]),fillOpacity:.92}).bindPopup(`<b>${sevName(p[2])} injury collision</b><br>${p[3]} · ${p[4]} casualt${p[4]===1?'y':'ies'}`)));return g})();
   extrasReady=true;
@@ -1618,6 +1684,8 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
  map.addLayer(ML.crimes);
  $('.layers').onchange=e=>{const k=e.target.dataset.l; if(!k)return; if(!ML[k]&&!extrasReady){if(e.target.checked) pendingLayers.push(k);return} const l=ML[k]; if(!l)return; e.target.checked?map.addLayer(l):map.removeLayer(l);if(k=='heat'){const ci=document.querySelector('input[data-l=crimes]');if(e.target.checked){if(ci.checked){ci.checked=false;map.removeLayer(ML.crimes)}if(!is3d())set3d(true);else heatView()}else if(!ci.checked){ci.checked=true;map.addLayer(ML.crimes)}}m3vis()};
  $('#recentre').onclick=()=>{if(is3d()&&m3)m3.jumpTo(view3d());else map.fitBounds(area.getBounds())};
+  wireStreetViewButton();
+  wireMapStreetViewContext(map);
  $('#mode3d').onclick=()=>set3d(!is3d());const K=window._keep;window._keep=null;
  if(K){const t=K.tab&&$('#'+K.tab);if(t)sel(t);document.querySelectorAll('.layers input').forEach(i=>{const on=K.L.includes(i.dataset.l);if(on!==i.checked){i.checked=on;on?map.addLayer(ML[i.dataset.l]):map.removeLayer(ML[i.dataset.l])}});map.setView(K.ll.c,K.ll.z,{animate:false});
   window._cam=K.cam;if(K.d3)set3d(true);else m3vis();const sy=()=>scrollTo({top:K.y,behavior:'instant'});sy();requestAnimationFrame(sy);setTimeout(sy,150);setTimeout(sy,600)}
@@ -1680,12 +1748,12 @@ async function set3d(on){const b=$('#mode3d'),box=$('#mapbox');if(!b)return;b.se
     M.on('click','sl-'+k+'-cl',e=>{const f=e.features[0];M.getSource('sl-'+k).getClusterExpansionZoom(f.properties.cluster_id).then(z=>M.easeTo({center:f.geometry.coordinates,zoom:z,duration:reduce?0:400}))})}
    M.on('click','sl-'+k+'-pt',e=>new maplibregl.Popup({maxWidth:'260px'}).setLngLat(e.features[0].geometry.coordinates).setHTML(e.features[0].properties.h).addTo(M));
    ['sl-'+k+'-pt','sl-'+k+'-cl'].forEach(id=>{M.on('mouseenter',id,()=>M.getCanvas().style.cursor='pointer');M.on('mouseleave',id,()=>M.getCanvas().style.cursor='')})};
-  pt('crimes',fc(c.near,p=>({h:`<b>${cn(c.cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br><i>${S.outcomeBuckets[p[4]]}</i>`})),true,5);
+  pt('crimes',fc(c.near,p=>({h:`<b>${cn(c.cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br><i>${S.outcomeBuckets[p[4]]}</i><br>${svLink(p[0],p[1],{approx:true})}`})),true,5);
   pt('gp',fc(c.GP,p=>({h:`<b>${esc(p[2])}</b><br>GP practice · ${p[3]}`})),true);pt('dent',fc(c.DE,p=>({h:`<b>${esc(p[2])}</b><br>Dental practice · ${p[3]}`})),true);
-  pt('sch',fc(c.SC,p=>({h:`<b>${esc(p[2])}</b><br>${esc(p[3])} · ${esc(p[4])}${p[5]?'<br>Ofsted: '+esc(p[5]):''}`})),true);
-  pt('bus',fc(c.ST,p=>({h:'Bus stop: '+esc(p[2])})),true,4);pt('rail',fc(c.RA,p=>({h:'<b>'+esc(p[2])+'</b>'})),false,9);
+  pt('sch',fc(c.SC,p=>({h:`<b>${esc(p[2])}</b><br>${esc(p[3])} · ${esc(p[4])}${p[5]?'<br>Ofsted: '+esc(p[5]):''}<br>${svLink(p[0],p[1])}`})),true);
+  pt('bus',fc(c.ST,p=>({h:'Bus stop: '+esc(p[2])})),true,4);pt('rail',fc(c.RA,p=>({h:'<b>'+esc(p[2])+'</b><br>'+svLink(p[0],p[1])})),false,9);
   if(c.GS) pt('park',fc(c.GS,p=>({h:`<b>${esc(p[2])}</b><br>${esc(p[3]||'Greenspace')}`})),true);
   if(c.CO&&c.CO.length) pt('collisions',fc(c.CO,p=>({h:`<b>${sevName(p[2])} injury collision</b><br>${p[3]} · ${p[4]} casualt${p[4]===1?'y':'ies'}`})),true,6);
-  new maplibregl.Marker({color:'#14213d'}).setLngLat([c.lo,c.la]).setPopup(new maplibregl.Popup().setHTML('<b>'+c.postcode+'</b>')).addTo(M);
+  new maplibregl.Marker({color:'#14213d'}).setLngLat([c.lo,c.la]).setPopup(new maplibregl.Popup().setHTML('<b>'+c.postcode+'</b><br>'+svLink(c.la,c.lo))).addTo(M);
   M._slIds=ids;M._slReady=true;m3vis()})}
 
