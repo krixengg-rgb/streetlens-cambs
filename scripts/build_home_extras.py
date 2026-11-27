@@ -26,6 +26,9 @@ def main():
             "byYear": C.get("byYear") or {},
             "districts": C.get("districts") or [],
         }
+        if C.get("prov"):
+            pv = C["prov"]
+            out["collisions"]["prov"] = {k: v for k, v in pv.items() if k != "points"}
     if not out:
         raise SystemExit("no hotspots or collisions to summarise")
     tmp = OUT + ".tmp"

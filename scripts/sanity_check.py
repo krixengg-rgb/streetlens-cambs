@@ -151,6 +151,16 @@ if co not in (None, "__EMPTY__") and isinstance(co, dict):
     cov = co.get("overview") or {}
     if (cov.get("fatal") or 0) + (cov.get("serious") or 0) + (cov.get("slight") or 0) != cov.get("n", -1):
         errs.append("collisions overview severity counts do not sum to n")
+    pv = co.get("prov")
+    if pv:
+        ppts = pv.get("points") or []
+        pov = pv.get("overview") or {}
+        if not (100 <= len(ppts) <= 5000):
+            errs.append(f"collisions provisional count {len(ppts)} outside [100,5000]")
+        if pov.get("n") != len(ppts):
+            errs.append("collisions provisional overview n does not match points")
+        if (pov.get("fatal") or 0) + (pov.get("serious") or 0) + (pov.get("slight") or 0) != pov.get("n", -1):
+            errs.append("collisions provisional severity counts do not sum to n")
 else:
     errs.append("collisions.json missing or empty")
 

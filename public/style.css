@@ -291,3 +291,18 @@ table.sortable th[aria-sort=descending] button::after{content:" ▼";font-size:1
 @media (max-width:640px){
   .mapctl button.sv-btn,.sl-sv-ctl .sv-ctl{font-size:12px;padding:0 8px}
 }
+
+/* Stage M */
+.prov-note{margin:10px 0 0;font-size:14px;color:var(--ink2)}
+.prov-note .badge{margin-right:6px}
+.chg-grid h4{margin:6px 0;font-size:14px;color:var(--ink2)}
+.chg-list{list-style:none;margin:0;padding:0}
+.chg-list li{display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.chg-list li:last-child{border:0}
+.chg-list .chg{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums}
+.chg.up,.chg.down{color:var(--ink)}
+ul.nearcmp{list-style:none;margin:0;padding:0}
+ul.nearcmp li{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+ul.nearcmp li:last-child{border:0}
+ul.nearcmp .btn{min-height:44px;flex-shrink:0}
+@media (max-width:640px){ul.nearcmp li{flex-wrap:wrap}}
