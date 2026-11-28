@@ -318,3 +318,4 @@ ul.nearcmp .btn{min-height:44px;flex-shrink:0}
 .fswitch .muted{flex-basis:100%;font-size:13px;opacity:.85;color:inherit}
 .simple-hero .fswitch,.qrow+.err+.fswitch{justify-content:center}
 .league .fswitch{margin:10px 0 0}
+.league .fswitch .chip:not(.on),.state .fswitch .chip:not(.on){color:var(--ink);border-color:var(--line);background:var(--card)}
