@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Build compact Census 2021 + council tax band context for Cambs & Peterborough LSOAs (OGL)."""
+"""Build compact Census 2021 + council tax band context for one force's LSOAs (OGL)."""
 import csv, io, json, os, sys, time, zipfile
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-OUT = os.path.join(ROOT, "public", "data", "context.json")
-LSOA = os.path.join(ROOT, "public", "data", "lsoa_rates.json")
-SUMMARY = os.path.join(ROOT, "public", "data", "summary.json")
-TS054 = os.path.join(ROOT, "raw", "census", "census2021-ts054.zip")
-TS007A = os.path.join(ROOT, "raw", "census", "census2021-ts007a.zip")
-CTSOP = os.path.join(ROOT, "raw", "ctsop", "CTSOP_1_1_2026.zip")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import forces
+OUT = os.path.join(forces.OUT, "context.json")
+LSOA = os.path.join(forces.OUT, "lsoa_rates.json")
+SUMMARY = os.path.join(forces.OUT, "summary.json")
+TS054 = os.path.join(forces.RAW_NAT, "census", "census2021-ts054.zip")
+TS007A = os.path.join(forces.RAW_NAT, "census", "census2021-ts007a.zip")
+CTSOP = os.path.join(forces.RAW_NAT, "ctsop", "CTSOP_1_1_2026.zip")
 
 # 5-year bands in TS007A folded into broader groups for a short profile.
 AGE_GROUPS = [
@@ -91,7 +93,7 @@ def main():
         social = num(row.get("Tenure of household: Social rented"))
         priv = num(row.get("Tenure of household: Private rented")) + num(row.get("Tenure of household: Lives rent free"))
         tenure[code] = {"hh": hh, "owned": pct(owned, hh), "social": pct(social, hh), "priv": pct(priv, hh)}
-    if len(tenure) < 500:
+    if len(tenure) < 0.9 * len(codes):
         die(f"tenure rows {len(tenure)} expected ~516")
 
     # Age
@@ -106,7 +108,7 @@ def main():
         for k in AGE_KEYS:
             grp.append(pct(sum(num(row.get(col)) for col in AGE_MAP[k]), tot))
         ages[code] = {"pop21": tot, "age": grp}
-    if len(ages) < 500:
+    if len(ages) < 0.9 * len(codes):
         die(f"age rows {len(ages)} expected ~516")
 
     # Council tax
@@ -123,7 +125,7 @@ def main():
         if tot <= 0:
             tot = sum(bands)
         tax[code] = {"ct": bands, "ctN": tot}
-    if len(tax) < 400:
+    if len(tax) < 0.75 * len(codes):
         die(f"council tax LSOA rows {len(tax)} unexpected")
 
     lsoa_out = {}
@@ -194,8 +196,8 @@ def main():
     os.replace(tmp, OUT)
     print("wrote", OUT, "lsoa", len(lsoa_out), "tax", len(tax), "bytes", os.path.getsize(OUT))
     # sanity print one
-    hunts = next(d for d in summary["districts"] if d["name"] == "Huntingdonshire")
-    print("Huntingdonshire context", districts[hunts["code"]])
+    d0 = summary["districts"][0]
+    print(d0["name"], "context", districts[d0["code"]])
     return 0
 
 

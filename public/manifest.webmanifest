@@ -1,7 +1,7 @@
 {
-  "name": "StreetLens — Cambridgeshire area insights",
+  "name": "StreetLens — local crime and area insights",
   "short_name": "StreetLens",
-  "description": "Crime, outcomes and local services for Cambridgeshire and Peterborough postcodes.",
+  "description": "Crime, outcomes and local services for postcodes in Cambridgeshire & Peterborough and Northamptonshire.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

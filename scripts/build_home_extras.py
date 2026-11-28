@@ -2,10 +2,11 @@
 """Slim homepage payload so first load does not fetch full hotspot and collision files."""
 import json, os, sys
 
-ROOT = os.path.join(os.path.dirname(__file__), "..")
-OUT = os.path.join(ROOT, "public", "data", "home_extras.json")
-HS = os.path.join(ROOT, "public", "data", "hotspots.json")
-CO = os.path.join(ROOT, "public", "data", "collisions.json")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import forces
+OUT = os.path.join(forces.OUT, "home_extras.json")
+HS = os.path.join(forces.OUT, "hotspots.json")
+CO = os.path.join(forces.OUT, "collisions.json")
 
 
 def main():

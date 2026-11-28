@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Refresh Cambridgeshire crime data (data.police.uk) + ONS population (Nomis). Safe for CI."""
+"""Refresh one force's crime data (data.police.uk) + ONS population (Nomis). Safe for CI."""
 import json, time, csv, io, urllib.request, urllib.parse, concurrent.futures as cf, os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import forces
 
 API = "https://data.police.uk/api"
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-OUT = os.path.join(ROOT, "public", "data")
-RAW = os.path.join(ROOT, "raw")
+OUT = forces.OUT
+RAW = forces.RAW
 os.makedirs(OUT, exist_ok=True)
 os.makedirs(RAW, exist_ok=True)
 
@@ -26,14 +28,7 @@ def get(url, data=None, tries=6):
             time.sleep(2 * (i + 1))
     die(f"failed after {tries} tries: {url}\n{last}")
 
-DIST = {
-    "E07000008": ("Cambridge", ["CamCity_City_Centre", "CamCity_East_City", "CamCity_North_City", "CamCity_South_City"]),
-    "E07000009": ("East Cambridgeshire", ["East_Cambridgeshire"]),
-    "E07000010": ("Fenland", ["March", "Wisbech"]),
-    "E07000011": ("Huntingdonshire", ["Huntingdon_and_Yaxley", "St_Ives_and_Ramsey", "St_Neots"]),
-    "E07000012": ("South Cambridgeshire", ["South_Cambridgeshire"]),
-    "E06000031": ("Peterborough", ["Peterborough_Central", "Peterborough_City_Centre", "Peterborough_Eastern", "Peterborough_Northern", "Peterborough_Southern"]),
-}
+DIST = forces.DIST
 
 def latest_api_month():
     dates = [d["date"] for d in json.loads(get(API + "/crimes-street-dates"))]
@@ -75,7 +70,7 @@ def main(force=False):
     nb2d = {n: c for c, (_, ns) in DIST.items() for n in ns}
     polys = {}
     for n in nb2d:
-        b = json.loads(get(f"{API}/cambridgeshire/{n}/boundary"))
+        b = json.loads(get(f"{API}/{forces.ID}/{n}/boundary"))
         if len(b) < 3:
             die(f"boundary too small for neighbourhood {n}")
         polys[n] = ":".join(f"{p['latitude']},{p['longitude']}" for p in b)
@@ -96,7 +91,7 @@ def main(force=False):
                 if key not in seen:
                     seen[key] = (nb2d[n], m, c)
 
-    if len(seen) < 40000:
+    if len(seen) < forces.CFG["min_crimes"]:
         die(f"too few crimes: {len(seen)} (expected ~70k–100k)")
 
     cats = json.loads(get(API + "/crime-categories"))
@@ -162,7 +157,7 @@ def main(force=False):
             ])
         raw_out[(c.get("outcome_status") or {}).get("category")] += 1
 
-    if len(pts) < 40000:
+    if len(pts) < forces.CFG["min_crimes"]:
         die(f"too few point rows: {len(pts)}")
 
     tp = sum(pop.values())
@@ -176,7 +171,7 @@ def main(force=False):
         return 4
     ss = []
     for m in months:
-        for x in json.loads(get(f"{API}/stops-force?force=cambridgeshire&date={m}")):
+        for x in json.loads(get(f"{API}/stops-force?force={forces.ID}&date={m}")):
             if x.get("location"):
                 ss.append([
                     round(float(x["location"]["latitude"]), 5),
@@ -223,7 +218,7 @@ def main(force=False):
         "monthsAll": months_all,
         "popYear": popyear,
         "categories": [{"id": k, "name": catname.get(k, k)} for k in catlist],
-        "overview": {**allc, "name": "Cambridgeshire & Peterborough", "population": tp, "rate": round(allc["total"] / tp * 1000, 1)},
+        "overview": {**allc, "name": forces.NAME, "force": forces.ID, "population": tp, "rate": round(allc["total"] / tp * 1000, 1)},
         "districts": [{"code": c, "name": DIST[c][0], "population": pop[c], "rate": round(dist[c]["total"] / pop[c] * 1000, 1), **dist[c]} for c in DIST],
     }
     for name, obj in (("stopsearch.json", ss), ("summary.json", summary), ("points.json", pts)):

@@ -8,7 +8,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.ico" sizes="any">
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="stylesheet" href="style.css?v=30">
 <script>(()=>{const t=localStorage.getItem('sl-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t})()</script>
 <style>
 .method{max-width:760px;margin:0 auto;padding:28px 20px 64px}
@@ -30,7 +30,9 @@
 <a class="back tlink" href="./">← Back to StreetLens</a>
 <span class="eyebrow" style="background:var(--neu-bg);color:var(--ink2);border:1px solid var(--line)">Methodology</span>
 <h1>How to read this site</h1>
-<p>StreetLens is an independent Cambridgeshire &amp; Peterborough prototype. It pulls together free public datasets so you can explore an area before you move, rent or report. It is not affiliated with any police force or public body.</p>
+<p>StreetLens is an independent prototype. It pulls together free public datasets so you can explore an area before you move, rent or report. It is not affiliated with any police force or public body.</p>
+<h2>Areas covered</h2>
+<p>StreetLens now covers two police force areas: Cambridgeshire &amp; Peterborough (Cambridgeshire Constabulary, six districts) and Northamptonshire (Northamptonshire Police, West and North Northamptonshire). More force areas are being added one at a time, each with the same features before the next one starts. A postcode search opens the right area automatically; postcodes elsewhere get a “not covered yet” message. Every rank, band and percentile is worked out <em>within one force area only</em>. StreetLens does not compare areas across forces, because recording practice differs between forces and a cross-force league would read like a safety ranking, which it is not. The compare page also asks for two postcodes in the same force area. Crime near a force boundary only includes crimes recorded by the force that covers the postcode.</p>
 
 <h2>What the map shows</h2>
 <ul>
@@ -53,7 +55,7 @@
 <li><b>House prices</b> are medians of HM Land Registry standard residential sales for the latest 12 months of data.</li>
 <li><b>Flood, broadband and deprivation</b> (where shown) use Environment Agency, Ofcom and MHCLG open data for the postcode or its LSOA — not a property survey.</li>
 <li><b>Parks and playing fields</b> are centroids from OS Open Greenspace (OGL). A pin is the site’s centre, not an entrance, and the dataset covers publicly mapped greenspace rather than every open field.</li>
-<li><b>Stop and search</b> figures are Cambridgeshire Constabulary records published with a location. Outcomes are as recorded; most stops result in no further action. This is not a crime rate and is not broken down by personal characteristics on this site.</li>
+<li><b>Stop and search</b> figures are records published with a location by the force that covers the area (Cambridgeshire Constabulary or Northamptonshire Police). Outcomes are as recorded; most stops result in no further action. This is not a crime rate and is not broken down by personal characteristics on this site.</li>
 </ul>
 
 <h2>Year-on-year change</h2>
@@ -65,14 +67,14 @@
 
 <h2>Neighbourhood rate and comparison</h2>
 <p>The LSOA rate is an approximate figure. We assign each published crime to the nearest 2021 LSOA population-weighted centroid, then divide by the LSOA’s mid-year population. Because police anonymise locations, this is not an official police LSOA statistic. Town centres often look high: visitors, shoppers and nightlife are not in the resident count.</p>
-<p>“Lower recorded rate than X% of local neighbourhoods” is the share of Cambridgeshire &amp; Peterborough LSOAs with a <em>higher</em> approximate rate than this one. It is a rank, not a safety score, and it is not adjusted for mixed use or deprivation. Nearby suggestions list other LSOAs within about five miles whose approximate rate is lower, with same-district areas first. They are not a recommendation to move.</p>
+<p>“Lower recorded rate than X% of local neighbourhoods” is the share of LSOAs in the same force area (for example all Northamptonshire LSOAs) with a <em>higher</em> approximate rate than this one. It is a rank, not a safety score, and it is not adjusted for mixed use or deprivation. Nearby suggestions list other LSOAs within about five miles whose approximate rate is lower, with same-district areas first. They are not a recommendation to move.</p>
 
 <h2>Month grid</h2>
 <p>The year-at-a-glance grid colours each published month relative to the highest month on that chart. Police data is monthly only: there is no day-of-week or time-of-day detail on this site.</p>
 
 <h2>Place search, saved areas and feeds</h2>
-<p>You can type a postcode or a place name (for example Ely or Huntingdon). Place search uses postcodes.io and then opens the nearest postcode still in Cambridgeshire or Peterborough. Full street-address search is not offered, because that needs a paid or keyed service.</p>
-<p>Save area stores a short list on this device only (it does not create an account or send alerts). District Atom feeds update when StreetLens publishes a new monthly snapshot. They are not live incident alerts. For official messages from Cambridgeshire Constabulary, use <a href="https://www.ecops.org.uk/" target="_blank" rel="noopener">eCops</a>.</p>
+<p>You can type a postcode or a place name (for example Ely or Kettering). Place search uses postcodes.io and then opens the nearest postcode still in a covered area. Full street-address search is not offered, because that needs a paid or keyed service.</p>
+<p>Save area stores a short list on this device only (it does not create an account or send alerts). District Atom feeds update when StreetLens publishes a new monthly snapshot. They are not live incident alerts. For official messages, use <a href="https://www.ecops.org.uk/" target="_blank" rel="noopener">eCops</a> (Cambridgeshire Constabulary) or <a href="https://www.northamptonshiretalking.co.uk/" target="_blank" rel="noopener">Northamptonshire Talking</a> (Northamptonshire Police).</p>
 
 <h2>Embeds, downloads and the crime table</h2>
 <p>The embed snippet is a compact summary that links back to the full profile. CSV and JSON downloads repeat the published district figures. The “crimes as a table” view is the same records as the map, grouped by month, type and latest outcome, so the page stays usable without the map. Locations remain anonymised, so it is not a list of addresses.</p>
@@ -85,7 +87,7 @@
 
 
 <h2>Season and type mix</h2>
-<p>The “usual pattern” chart shows each month as a percentage of that area’s own monthly average (100 is a typical month). A county line, when shown, uses the same months for Cambridgeshire &amp; Peterborough. The type-mix chart compares the <em>share</em> of recorded crimes by type with the county mix. It is not a rate per resident: a higher share of shoplifting does not on its own mean a higher rate.</p>
+<p>The “usual pattern” chart shows each month as a percentage of that area’s own monthly average (100 is a typical month). A county line, when shown, uses the same months for the whole force area. The type-mix chart compares the <em>share</em> of recorded crimes by type with the county mix. It is not a rate per resident: a higher share of shoplifting does not on its own mean a higher rate.</p>
 
 <h2>What happens after a report</h2>
 <p>The funnel starts with all recorded crimes in the view, then the share that have an outcome category (anti-social behaviour is published without one), then the share charged, summonsed or resolved out of court — the same group used in the solve rate. The list below is the latest recorded outcome, not a courtroom result. Newer months still have many cases under investigation.</p>
@@ -120,17 +122,17 @@
 <p>On a postcode page, each nearby school and rail station shows how many recorded crimes in the chosen time window have an anonymised pin within 250 metres (about 0.16 miles) of that site. Pins are snapped to a public location, so this is not a count of incidents on the school or station site.</p>
 
 <h2>Between two postcodes</h2>
-<p>When both sides of the compare page have a Cambridgeshire or Peterborough postcode, StreetLens counts recorded crimes whose pin falls within 250 metres of the straight line between the two postcode centroids. This is not a driving, walking or public-transport route, and it is not a commute time. The same time window as the compare page applies, and pins are anonymised in the usual way.</p>
+<p>When both sides of the compare page have a postcode in the same covered force area, StreetLens counts recorded crimes whose pin falls within 250 metres of the straight line between the two postcode centroids. This is not a driving, walking or public-transport route, and it is not a commute time. The same time window as the compare page applies, and pins are anonymised in the usual way.</p>
 
 <h2>Explaining a figure</h2>
 <p>Short plain-English notes sit under selected totals, rates, solve figures, neighbourhood rates, outcome funnels and collision counts. They restate what the number includes and what it does not. They are not a second dataset.</p>
 
 <h2>Simple and Advanced views</h2>
 <p>StreetLens opens in a Simple view: a few headline figures, a map, and short plain-English notes. A one-sentence summary at the top states the recorded-crime count and, where we can, how it compares with the previous 12 months. Press “Do you want to know more?” to expand a fuller plain-English write-up of the same figures (types, outcomes, neighbourhood rate, nearby schools or stations, collisions and caveats, where those numbers are available). That write-up stays in Simple view; “See all the details in Advanced view” still opens the full dashboard. On a postcode page that comparison uses pins in the same radius in both years (a compact previous-year file, not shown on the map). If that file cannot be loaded, or either year has fewer than 20 crimes in the radius, we say so and may fall back to the labelled district figure. Neighbourhood bands are shown as Low, Average or High — they are not a safety score. Choose Advanced in the header, or press “See all the details”, to see the full charts, tables, downloads and other layers. Your choice is remembered on this device. Add <code>?mode=simple</code> or <code>?mode=advanced</code> to a link to open in that view. The league and compare pages are part of Advanced view and will switch you there. This does not change the figures themselves.</p>
-<p>Use my location is optional. If you allow it, your device sends a coordinate only to <a href="https://postcodes.io/">postcodes.io</a> to find the nearest Cambridgeshire or Peterborough postcode. The coordinate is not stored. A short first-visit note explains how to read the simple view; dismiss it and it stays dismissed on that device. Neighbourhood team details come from data.police.uk and can fail if that service blocks the request; the page will retry a few times and offer a Try again button. Road collisions use STATS19 final calendar years 2024 and 2025, plus the provisional January to June 2026 file shown separately and labelled.</p>
+<p>Use my location is optional. If you allow it, your device sends a coordinate only to <a href="https://postcodes.io/">postcodes.io</a> to find the nearest postcode in a covered area. The coordinate is not stored. A short first-visit note explains how to read the simple view; dismiss it and it stays dismissed on that device. Neighbourhood team details come from data.police.uk and can fail if that service blocks the request; the page will retry a few times and offer a Try again button. Road collisions use STATS19 final calendar years 2024 and 2025, plus the provisional January to June 2026 file shown separately and labelled.</p>
 
 <h2>Licences</h2>
-<p>Most sources are under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>. House prices also carry: Contains HM Land Registry data © Crown copyright and database right 2026. Road collisions: Department for Transport Road Safety Data (STATS19). Neighbourhood teams, events and priorities: data.police.uk. Location names on the hotspot list are from data.police.uk street-level crime. Census 2021: Office for National Statistics via Nomis. Council tax stock: Valuation Office Agency CTSOP1.1. Cache version: v29.</p>
+<p>Most sources are under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>. House prices also carry: Contains HM Land Registry data © Crown copyright and database right 2026. Road collisions: Department for Transport Road Safety Data (STATS19). Neighbourhood teams, events and priorities: data.police.uk. Location names on the hotspot list are from data.police.uk street-level crime. Census 2021: Office for National Statistics via Nomis. Council tax stock: Valuation Office Agency CTSOP1.1. Cache version: v30.</p>
 </main>
 <footer class="foot"><p><a href="./">StreetLens</a> · independent prototype</p></footer>
 <script>

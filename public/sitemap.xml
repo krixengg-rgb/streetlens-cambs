@@ -15,7 +15,15 @@
 <url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/districts/south-cambridgeshire.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
 <url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/?d=peterborough</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
 <url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/districts/peterborough.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/index.html</loc></url>
-  <url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/county.xml</loc></url>
 <url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/?view=league</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/?f=northamptonshire</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/?d=west-northamptonshire</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/districts/west-northamptonshire.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/?d=north-northamptonshire</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/districts/north-northamptonshire.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/?view=league&amp;f=northamptonshire</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/index.html</loc></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/county.xml</loc></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/northamptonshire/index.html</loc></url>
+<url><loc>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/northamptonshire/county.xml</loc></url>
 </urlset>

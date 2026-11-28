@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Clip OS Open Greenspace (OGL) TL/TF/SP tiles to the Cambridgeshire bbox and write centroids."""
+"""Clip OS Open Greenspace (OGL) TL/TF/SP tiles to one force's crime-point bbox and write centroids."""
 import json, sys
 from pathlib import Path
 from collections import Counter
@@ -12,8 +12,10 @@ except ImportError:
     sys.exit("need pyshp and pyproj in the environment")
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import forces
 UNPACKED = ROOT / "raw" / "greenspace" / "unpacked"
-OUT = ROOT / "public" / "data" / "greenspace.json"
+OUT = Path(forces.OUT) / "greenspace.json"
 
 KEEP = {
     "Public Park Or Garden": "Park",
@@ -29,7 +31,7 @@ KEEP = {
 }
 
 def main():
-    pts = json.loads((ROOT / "public" / "data" / "points.json").read_text())
+    pts = json.loads((Path(forces.OUT) / "points.json").read_text())
     lats = [p[0] for p in pts]
     lons = [p[1] for p in pts]
     lat0, lat1 = min(lats) - 0.08, max(lats) + 0.08

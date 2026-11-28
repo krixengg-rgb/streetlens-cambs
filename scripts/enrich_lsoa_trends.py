@@ -3,9 +3,11 @@
 import json, math, os, sys
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-LSOA = os.path.join(ROOT, "public", "data", "lsoa_rates.json")
-POINTS = os.path.join(ROOT, "public", "data", "points.json")
-SUMMARY = os.path.join(ROOT, "public", "data", "summary.json")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import forces
+LSOA = os.path.join(forces.OUT, "lsoa_rates.json")
+POINTS = os.path.join(forces.OUT, "points.json")
+SUMMARY = os.path.join(forces.OUT, "summary.json")
 
 
 def hav(a, b, c, d):
@@ -25,7 +27,7 @@ def main():
         if row.get("lat") is None or row.get("lon") is None:
             continue
         cents.append((code, row["lat"], row["lon"]))
-    if len(cents) < 500:
+    if len(cents) < max(100, 0.9 * len(lr["lsoa"])):
         raise SystemExit(f"too few centroids: {len(cents)}")
 
     # spatial bins of 0.05 deg

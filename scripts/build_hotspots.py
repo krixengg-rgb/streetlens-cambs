@@ -2,21 +2,16 @@
 """Aggregate police.uk street snap-points into a compact hotspot list (OGL)."""
 import json, os, sys, time, urllib.parse, urllib.request, concurrent.futures as cf
 from collections import defaultdict
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import forces
 
 API = "https://data.police.uk/api"
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-OUT = os.path.join(ROOT, "public", "data", "hotspots.json")
-SUMMARY = os.path.join(ROOT, "public", "data", "summary.json")
+OUT = os.path.join(forces.OUT, "hotspots.json")
+SUMMARY = os.path.join(forces.OUT, "summary.json")
 UA = {"User-Agent": "StreetLens-cambs/1.0 (+https://github.com/krixengg-rgb/streetlens-cambs)"}
 
-DIST = {
-    "E07000008": ("Cambridge", ["CamCity_City_Centre", "CamCity_East_City", "CamCity_North_City", "CamCity_South_City"]),
-    "E07000009": ("East Cambridgeshire", ["East_Cambridgeshire"]),
-    "E07000010": ("Fenland", ["March", "Wisbech"]),
-    "E07000011": ("Huntingdonshire", ["Huntingdon_and_Yaxley", "St_Ives_and_Ramsey", "St_Neots"]),
-    "E07000012": ("South Cambridgeshire", ["South_Cambridgeshire"]),
-    "E06000031": ("Peterborough", ["Peterborough_Central", "Peterborough_City_Centre", "Peterborough_Eastern", "Peterborough_Northern", "Peterborough_Southern"]),
-}
+DIST = forces.DIST
 DIST_I = {c: i for i, c in enumerate(DIST)}
 
 
@@ -61,7 +56,7 @@ def main():
     nb2d = {n: c for c, (_, ns) in DIST.items() for n in ns}
     polys = {}
     for n in nb2d:
-        b = json.loads(get(f"{API}/cambridgeshire/{n}/boundary"))
+        b = json.loads(get(f"{API}/{forces.ID}/{n}/boundary"))
         if len(b) < 3:
             die(f"boundary too small for neighbourhood {n}")
         polys[n] = ":".join(f"{p['latitude']},{p['longitude']}" for p in b)
@@ -129,7 +124,7 @@ def main():
 
     out = {
         "meta": {
-            "source": "data.police.uk street-level crime, Cambridgeshire Constabulary, OGL v3.0",
+            "source": f"data.police.uk street-level crime, {forces.CFG['police']}, OGL v3.0",
             "months": months,
             "generated": time.strftime("%Y-%m-%d"),
             "note": "Each location is the anonymised snap point published by the police (usually “On or near” a street or landmark), not the exact address of an offence. Counts are recorded crimes at that snap point over the latest 12 months.",

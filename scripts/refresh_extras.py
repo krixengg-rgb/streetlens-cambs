@@ -3,8 +3,13 @@
 import csv, json, os, re, io, statistics, urllib.request, urllib.error, datetime, collections, time, sys
 
 B = os.path.dirname(os.path.abspath(__file__))
-RAW = os.path.join(B, "..", "raw")
-OUT = os.path.join(B, "..", "public", "data")
+sys.path.insert(0, B)
+import forces, hashlib
+RAW = forces.RAW
+OUT = forces.OUT
+# national downloads are cached for 12h so a multi-force CI run fetches them once
+CACHE = os.path.join(forces.RAW_NAT, "nat_cache")
+os.makedirs(CACHE, exist_ok=True)
 os.makedirs(RAW, exist_ok=True)
 os.makedirs(OUT, exist_ok=True)
 UA = {"User-Agent": "Mozilla/5.0 (StreetLens prototype; +https://github.com/krixengg-rgb/streetlens-cambs)"}
@@ -14,6 +19,15 @@ def die(msg):
     sys.exit(1)
 
 def get(url, tries=5, timeout=180):
+    cp = os.path.join(CACHE, hashlib.sha1(url.encode()).hexdigest())
+    if os.path.exists(cp) and time.time() - os.path.getmtime(cp) < 12 * 3600 and os.path.getsize(cp) > 100:
+        return open(cp, "rb").read()
+    data = _get(url, tries, timeout)
+    if len(data) > 100:
+        open(cp, "wb").write(data)
+    return data
+
+def _get(url, tries=5, timeout=180):
     last = None
     for i in range(tries):
         try:
@@ -33,9 +47,8 @@ def dl(url, path, tries=5, timeout=300):
         die(f"downloaded file too small: {path}")
     return path
 
-LAS = {"Cambridge": "E07000008", "East Cambridgeshire": "E07000009", "Fenland": "E07000010",
-       "Huntingdonshire": "E07000011", "South Cambridgeshire": "E07000012", "Peterborough": "E06000031"}
-CODES = set(LAS.values())
+CODES = forces.CODES
+C = forces.CFG
 _geo = {}
 
 def geocode(pcs):
@@ -113,7 +126,7 @@ def load_nhs_csv(rep):
 
 for rep, out, min_n in (("epraccur", "gp.json", 40), ("egdpprac", "dentists.json", 40)):
     p = load_nhs_csv(rep)
-    rows = [r for r in csv.reader(open(p, encoding="latin-1")) if len(r) > 12 and r[12] == "ACTIVE" and re.match(r"^(CB|PE|SG8|SG19|IP28|NR)", r[9])]
+    rows = [r for r in csv.reader(open(p, encoding="latin-1")) if len(r) > 12 and r[12] == "ACTIVE" and re.match(C["nhs_pc_re"], r[9])]
     if rep == "epraccur":
         rows = [r for r in rows if len(r) > 25 and r[25] == "RO76"]
     g = geocode([r[9] for r in rows])
@@ -198,7 +211,7 @@ def grade(urn, depth=0):
     return o, False
 
 GR = {"1": "Outstanding", "2": "Good", "3": "Requires improvement", "4": "Inadequate", "NJ": "No overall grade (post-2024 inspection)"}
-rows = [r for r in csv.DictReader(open(gias, encoding="latin-1")) if r["LA (name)"] in ("Cambridgeshire", "Peterborough") and r["EstablishmentStatus (name)"] == "Open"]
+rows = [r for r in csv.DictReader(open(gias, encoding="latin-1")) if r["LA (name)"] in C["gias_las"] and r["EstablishmentStatus (name)"] == "Open"]
 g = geocode([r["Postcode"] for r in rows])
 res = []
 for r in rows:
@@ -208,14 +221,14 @@ for r in rows:
     o, pred = grade(r["URN"])
     res.append([round(x[0], 5), round(x[1], 5), r["EstablishmentName"], r["PhaseOfEducation (name)"], r["TypeOfEstablishment (name)"], GR.get(o[0], ""), o[1] + (" (predecessor school)" if pred and o[0] else ""), r["URN"]])
 print("schools graded", sum(1 for x in res if x[5]), "of", len(res))
-w("schools.json", res, min_n=200)
+w("schools.json", res, min_n=C["min_schools"])
 
 # --- NaPTAN
 from pyproj import Transformer
 TR = Transformer.from_crs(27700, 4326, always_xy=True)
 stops, rail = [], {}
 
-for a in ("050", "059"):
+for a in C["naptan_areas"]:
     p = os.path.join(RAW, f"naptan_{a}.csv")
     open(p, "wb").write(get(f"https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=csv&atcoAreaCodes={a}", timeout=180))
     for r in csv.DictReader(open(p, encoding="utf-8-sig")):
@@ -232,15 +245,16 @@ for r in csv.DictReader(open(p, encoding="utf-8-sig")):
     if r["StopType"] != "RLY" or r.get("Status", "active").lower() != "active" or not r["Easting"]:
         continue
     lng, lat = TR.transform(float(r["Easting"]), float(r["Northing"]))
-    if 52.0 < lat < 52.75 and -0.55 < lng < 0.55:
+    if forces.in_bbox(lat, lng):
         n = re.sub(r"\s*Rail Station.*", "", r["CommonName"]).strip() + " station"
         rail.setdefault(n, [round(lat, 5), round(lng, 5), n])
-w("stops.json", stops, min_n=2000)
-w("rail.json", list(rail.values()), min_n=20)
+w("stops.json", stops, min_n=C["min_stops"])
+w("rail.json", list(rail.values()), min_n=C.get("min_rail", 20))
 
 # --- HM Land Registry Price Paid
 y = datetime.date.today().year
 sales = []
+dn = C["lr_districts"]
 for yr in (y - 1, y):
     url = f"http://prod2.publicdata.landregistry.gov.uk.s3-website-eu-west-1.amazonaws.com/pp-{yr}.csv"
     path = os.path.join(RAW, f"pp_{yr}.csv")
@@ -251,7 +265,7 @@ for yr in (y - 1, y):
         print("pp", yr, e)
         continue
     for r in csv.reader(io.StringIO(txt)):
-        if len(r) > 14 and r[12] in ("CAMBRIDGE", "EAST CAMBRIDGESHIRE", "FENLAND", "HUNTINGDONSHIRE", "SOUTH CAMBRIDGESHIRE", "CITY OF PETERBOROUGH") and r[3] and r[14] == "A":
+        if len(r) > 14 and r[12] in dn and r[3] and r[14] == "A":
             sales.append((r[2][:10], int(r[1]), r[3], r[12]))
 if len(sales) < 1000:
     die(f"too few house sales: {len(sales)}")
@@ -259,13 +273,11 @@ last = max(s[0] for s in sales)
 d = datetime.date.fromisoformat(last)
 start = (d.replace(day=1) - datetime.timedelta(days=335)).replace(day=1).isoformat()
 sales = [s for s in sales if s[0] >= start]
-dn = {"CAMBRIDGE": "E07000008", "EAST CAMBRIDGESHIRE": "E07000009", "FENLAND": "E07000010",
-      "HUNTINGDONSHIRE": "E07000011", "SOUTH CAMBRIDGESHIRE": "E07000012", "CITY OF PETERBOROUGH": "E06000031"}
 sec, dis = collections.defaultdict(list), collections.defaultdict(list)
 for _, p, pc, dd in sales:
     sec[pc[:-2].strip()].append(p)
     dis[dn[dd]].append(p)
-if len(dis) < 6:
+if len(dis) < len(forces.DIST):
     die(f"house price districts incomplete: {list(dis)}")
 w("prices.json", {
     "from": start, "to": last, "note": "Standard (category A) residential sales",

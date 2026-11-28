@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Build a compact Cambridgeshire & Peterborough STATS19 collision layer (OGL)."""
+"""Build a compact STATS19 collision layer for one force area (see forces.py; OGL)."""
 import csv, io, json, os, sys, time, urllib.error, urllib.request
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import forces
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-OUT = os.path.join(ROOT, "public", "data", "collisions.json")
-RAW = os.path.join(ROOT, "raw", "stats19")
+OUT = os.path.join(forces.OUT, "collisions.json")
+RAW = os.path.join(forces.RAW_NAT, "stats19")
 os.makedirs(RAW, exist_ok=True)
 
 # Latest two final calendar years published by DfT (OGL).
@@ -20,14 +22,8 @@ PROV_MAX_MONTH = 6
 URL = "https://data.dft.gov.uk/road-accidents-safety-data/dft-road-casualty-statistics-collision-{year}.csv"
 UA = {"User-Agent": "StreetLens-cambs/1.0 (+https://github.com/krixengg-rgb/streetlens-cambs)"}
 
-DIST = {
-    "E07000008": "Cambridge",
-    "E07000009": "East Cambridgeshire",
-    "E07000010": "Fenland",
-    "E07000011": "Huntingdonshire",
-    "E07000012": "South Cambridgeshire",
-    "E06000031": "Peterborough",
-}
+DIST = {c: v[0] for c, v in forces.DIST.items()}
+LAT0, LAT1, LON0, LON1 = forces.CFG["collision_bbox"]
 DIST_I = {c: i for i, c in enumerate(DIST)}
 # collision_severity: 1 fatal, 2 serious, 3 slight
 SEV_NAME = {1: "Fatal", 2: "Serious", 3: "Slight"}
@@ -101,7 +97,7 @@ def parse_rows(path, year, max_month=None):
                     continue
             except (TypeError, ValueError, IndexError):
                 continue
-            if not (-0.8 <= lon <= 0.6 and 51.9 <= lat <= 52.9):
+            if not (LON0 <= lon <= LON1 and LAT0 <= lat <= LAT1):
                 continue
             if sev not in (1, 2, 3):
                 continue

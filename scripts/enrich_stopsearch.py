@@ -28,7 +28,7 @@ def main():
     months = S["months"]
     ss = []
     for m in months:
-        rows = json.loads(rd.get(f"{rd.API}/stops-force?force=cambridgeshire&date={m}"))
+        rows = json.loads(rd.get(f"{rd.API}/stops-force?force={rd.forces.ID}&date={m}"))
         print(m, len(rows))
         for x in rows:
             loc = x.get("location") or {}

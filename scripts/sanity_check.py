@@ -3,17 +3,27 @@
 import json, os, sys
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-NEW = os.path.join(ROOT, "public", "data")
-PREV = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PREV_DATA", "")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import forces
+C = forces.CFG
+NEW = forces.OUT
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+PREV = ARGS[0] if ARGS else os.environ.get("PREV_DATA", "")
+# the previous snapshot is a copy of public/data; other forces live under f/<id>/ inside it
+if PREV and forces.WEB_PATH:
+    PREV = os.path.join(PREV, forces.WEB_PATH)
+NDIST = len(forces.DIST)
+MINC = C["min_crimes"]
+print("sanity check for", forces.NAME, "in", NEW)
 
 RANGES = {
-    "points.json": (50000, 150000),
+    "points.json": (MINC, 150000),
     "stopsearch.json": (800, 20000),
     "gp.json": (40, 300),
     "dentists.json": (40, 400),
-    "schools.json": (200, 800),
-    "stops.json": (2000, 12000),
-    "rail.json": (20, 80),
+    "schools.json": (C["min_schools"], 800),
+    "stops.json": (C["min_stops"], 12000),
+    "rail.json": (C.get("min_rail", 20), 80),
 }
 
 def load(folder, name):
@@ -37,10 +47,10 @@ if len(months) != 12:
     die(f"summary.months length {len(months)} != 12")
 if not summary.get("generated"):
     die("summary.generated missing")
-if not summary.get("districts") or len(summary["districts"]) != 6:
-    die("expected 6 districts")
+if not summary.get("districts") or len(summary["districts"]) != NDIST:
+    die(f"expected {NDIST} districts")
 ov = summary.get("overview") or {}
-if not ov.get("total") or ov["total"] < 40000:
+if not ov.get("total") or ov["total"] < MINC:
     die(f"overview.total too low: {ov.get('total')}")
 if not ov.get("rate") or not (20 < ov["rate"] < 300):
     die(f"overview.rate implausible: {ov.get('rate')}")
@@ -77,7 +87,7 @@ for name, (lo, hi) in RANGES.items():
         continue
     n = len(obj) if isinstance(obj, list) else (obj.get("districts") and len(obj["districts"]))
     if name == "prices.json":
-        if not isinstance(obj, dict) or len(obj.get("districts") or {}) < 6 or len(obj.get("sectors") or {}) < 50:
+        if not isinstance(obj, dict) or len(obj.get("districts") or {}) < NDIST or len(obj.get("sectors") or {}) < 50:
             errs.append(f"prices.json incomplete districts/sectors")
         continue
     if not isinstance(n, int) or not (lo <= n <= hi):
@@ -109,7 +119,8 @@ lr = load(NEW, "lsoa_rates.json")
 if lr in (None, "__EMPTY__") or not isinstance(lr, dict) or not isinstance(lr.get("lsoa"), dict):
     die("lsoa_rates.json missing or empty")
 lsoas = lr["lsoa"]
-if not (500 <= len(lsoas) <= 600):
+lo_l, hi_l = C.get("lsoa_range", (500, 600))
+if not (lo_l <= len(lsoas) <= hi_l):
     die(f"lsoa count {len(lsoas)} unexpected")
 missing = 0
 for code, row in lsoas.items():
@@ -121,7 +132,7 @@ if missing > 10:
     die(f"{missing} LSOAs missing centroid or percentile")
 
 DL = os.path.join(NEW, "downloads")
-FEEDS = os.path.join(ROOT, "public", "feeds")
+FEEDS = forces.FEEDS
 slugs = [d["name"].lower().replace(" ", "-") for d in summary["districts"]]
 for name in ["overview.json", "districts.csv"] + [s + ext for s in slugs for ext in (".json", ".csv")]:
     p = os.path.join(DL, name)
@@ -138,7 +149,7 @@ if hs not in (None, "__EMPTY__") and isinstance(hs, dict):
     spots = hs.get("spots") or []
     if not (1000 <= len(spots) <= 50000):
         errs.append(f"hotspots.json count {len(spots)} outside [1000,50000]")
-    elif hs.get("meta") and hs["meta"].get("crimes") and hs["meta"]["crimes"] < 40000:
+    elif hs.get("meta") and hs["meta"].get("crimes") and hs["meta"]["crimes"] < MINC:
         errs.append(f"hotspots crimes {hs['meta']['crimes']} too low")
 else:
     errs.append("hotspots.json missing or empty")
@@ -169,13 +180,13 @@ cx = load(NEW, "context.json")
 if cx not in (None, "__EMPTY__") and isinstance(cx, dict):
     lsoa = cx.get("lsoa") or {}
     districts = cx.get("districts") or {}
-    if len(lsoa) < 500:
-        errs.append(f"context.json LSOA count {len(lsoa)} < 500")
+    if len(lsoa) < lo_l:
+        errs.append(f"context.json LSOA count {len(lsoa)} < {lo_l}")
     taxed = sum(1 for v in lsoa.values() if isinstance(v, dict) and v.get("ctN"))
-    if taxed < 500:
-        errs.append(f"context.json tax rows {taxed} < 500")
-    if len(districts) != 6:
-        errs.append(f"context.json districts {len(districts)} != 6")
+    if taxed < lo_l:
+        errs.append(f"context.json tax rows {taxed} < {lo_l}")
+    if len(districts) != NDIST:
+        errs.append(f"context.json districts {len(districts)} != {NDIST}")
 else:
     errs.append("context.json missing or empty")
 
@@ -193,8 +204,8 @@ else:
 lr = load(NEW, "lsoa_rates.json")
 if lr not in (None, "__EMPTY__") and isinstance(lr, dict) and isinstance(lr.get("lsoa"), dict):
     mv_ok = sum(1 for v in lr["lsoa"].values() if isinstance(v, dict) and isinstance(v.get("mv"), list) and len(v["mv"]) == 12)
-    if mv_ok < 500:
-        errs.append(f"lsoa_rates mv present for {mv_ok} rows, expected >= 500")
+    if mv_ok < lo_l:
+        errs.append(f"lsoa_rates mv present for {mv_ok} rows, expected >= {lo_l}")
 else:
     errs.append("lsoa_rates.json missing for mv check")
 
@@ -204,8 +215,8 @@ if pt not in (None, "__EMPTY__") and isinstance(pt, dict):
     total = pt.get("total") or 0
     months_p = pt.get("months") or []
     tiles = pt.get("tiles") or []
-    if total < 40000:
-        errs.append(f"prev_tiles total {total} < 40000")
+    if total < MINC:
+        errs.append(f"prev_tiles total {total} < {MINC}")
     if len(months_p) != 12:
         errs.append(f"prev_tiles months {len(months_p)} != 12")
     if len(tiles) < 50:
@@ -223,4 +234,4 @@ if errs:
         print("SANITY FAIL:", e, file=sys.stderr)
     sys.exit(1)
 
-print("SANITY OK", months[0], "→", months[-1], "crimes", ov["total"], "generated", summary["generated"])
+print("SANITY OK", forces.NAME, months[0], "→", months[-1], "crimes", ov["total"], "generated", summary["generated"])

@@ -2,11 +2,15 @@
 """Enrich lsoa_rates with names, centroids, percentiles; write district downloads and Atom feeds."""
 import csv, json, os, math, urllib.request, urllib.parse, datetime, xml.etree.ElementTree as ET
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import forces
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "public" / "data"
-RAW = ROOT / "raw"
-FEEDS = ROOT / "public" / "feeds"
+OUT = Path(forces.OUT)
+RAW = Path(forces.RAW_NAT)
+FEEDS = Path(forces.FEEDS)
+FEED_URL = "feeds/" + forces.WEB_PATH
 DL = OUT / "downloads"
 BASE = "https://krixengg-rgb.github.io/streetlens-cambs/public"
 UA = {"User-Agent": "StreetLens-cambs/1.0 (+https://github.com/krixengg-rgb/streetlens-cambs)"}
@@ -86,7 +90,7 @@ def enrich_lsoa():
         v["pct"] = percentile_lower_than(v.get("rate"), rates)
     data["meta"] = {
         **data.get("meta", {}),
-        "percentile": "pct is the share of Cambridgeshire & Peterborough LSOAs with a higher approximate recorded rate. Not a safety score. Rates use nearest-centroid assignment and resident population.",
+        "percentile": "pct is the share of " + forces.NAME + " LSOAs with a higher approximate recorded rate. Not a safety score. Rates use nearest-centroid assignment and resident population.",
         "centroids": "ONS LSOA (Dec 2021) population-weighted centroids, OGL.",
         "n": len(lsoa),
         "enriched": datetime.date.today().isoformat(),
@@ -167,11 +171,11 @@ def atom_feed(path, title, page_url, summary_text, updated, entry_id):
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>{title}</title>
   <link href="{page_url}" rel="alternate"/>
-  <link href="{BASE}/feeds/{path.name}" rel="self"/>
-  <id>{BASE}/feeds/{path.name}</id>
+  <link href="{BASE}/{FEED_URL}{path.name}" rel="self"/>
+  <id>{BASE}/{FEED_URL}{path.name}</id>
   <updated>{updated}</updated>
   <author><name>StreetLens</name></author>
-  <subtitle>Open crime and area figures for Cambridgeshire and Peterborough. Not an official police alert service.</subtitle>
+  <subtitle>Open crime and area figures for {forces.NAME.replace("&", "&amp;")}. Not an official police alert service.</subtitle>
   <entry>
     <title>{title}: data updated</title>
     <link href="{page_url}"/>
@@ -193,11 +197,11 @@ def write_feeds(summary):
     yoy_s = "n/a" if yoy is None else f"{yoy:+.1f}%"
     atom_feed(
         FEEDS / "county.xml",
-        "StreetLens — Cambridgeshire &amp; Peterborough",
-        f"{BASE}/",
+        "StreetLens — " + forces.NAME.replace("&", "&amp;"),
+        f"{BASE}/" + ("" if forces.IS_DEFAULT else f"?f={forces.ID}"),
         f"Recorded crimes in the 12 months {period}: {ov['total']:,} ({ov['rate']} per 1,000 residents). Year-on-year {yoy_s}. Figures are police-recorded and locations are anonymised. Not a substitute for official community messaging.",
         gen,
-        f"{BASE}/#update-{gen}",
+        f"{BASE}/" + ("" if forces.IS_DEFAULT else f"?f={forces.ID}") + f"#update-{gen}",
     )
     for d in summary["districts"]:
         sl = slug(d["name"])
@@ -216,7 +220,7 @@ def write_feeds(summary):
     (FEEDS / "index.html").write_text(
         "<!doctype html><meta charset=utf-8><title>StreetLens feeds</title><h1>Atom feeds</h1><ul>"
         + "".join(f'<li><a href="{n}">{n}</a></li>' for n in links)
-        + "</ul><p>These feeds note when StreetLens district and county figures are refreshed. They are not live incident alerts. For official Cambridgeshire Constabulary messages, use eCops.</p>"
+        + "</ul><p>These feeds note when StreetLens district and county figures are refreshed. They are not live incident alerts. For official " + forces.CFG["police"] + " messages, use " + forces.CFG["alerts"][0] + ".</p>"
     )
     print("feeds", len(links))
 

@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 import refresh_data as rd
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-OUT = os.path.join(ROOT, "public", "data")
-RAW = os.path.join(ROOT, "raw")
+OUT = rd.OUT
+RAW = rd.RAW
 STAGE = os.path.join(RAW, "_stage_type_yoy")
 MIN_BASE = 20  # don't quote a % when previous count is below this
 
@@ -49,7 +49,7 @@ def main():
     nb2d = {n: c for c, (_, ns) in rd.DIST.items() for n in ns}
     polys = {}
     for n in nb2d:
-        b = json.loads(rd.get(f"{rd.API}/cambridgeshire/{n}/boundary"))
+        b = json.loads(rd.get(f"{rd.API}/{rd.forces.ID}/{n}/boundary"))
         if len(b) < 3:
             rd.die(f"boundary too small for neighbourhood {n}")
         polys[n] = ":".join(f"{p['latitude']},{p['longitude']}" for p in b)

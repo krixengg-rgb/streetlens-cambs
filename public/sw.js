@@ -1,15 +1,17 @@
 /* StreetLens service worker — cache the shell so the app can open offline. Live data still prefers the network. */
-const CACHE = 'streetlens-v29';
+const CACHE = 'streetlens-v30';
 const PRECACHE = [
   './',
   './index.html',
-  './style.css?v=29',
-  './app.js?v=29',
+  './style.css?v=30',
+  './app.js?v=30',
   './method.html',
   './favicon.svg',
   './manifest.webmanifest',
   './data/summary.json',
-  './data/prices.json'
+  './data/prices.json',
+  './data/f/northamptonshire/summary.json',
+  './data/f/northamptonshire/prices.json'
 ];
 self.addEventListener('install', ev => {
   ev.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));

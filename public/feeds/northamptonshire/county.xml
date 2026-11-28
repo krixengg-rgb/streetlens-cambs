@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>StreetLens — Northamptonshire</title>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?f=northamptonshire" rel="alternate"/>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/f/northamptonshire/county.xml" rel="self"/>
+  <id>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/f/northamptonshire/county.xml</id>
+  <updated>2026-11-28T00:00:00Z</updated>
+  <author><name>StreetLens</name></author>
+  <subtitle>Open crime and area figures for Northamptonshire. Not an official police alert service.</subtitle>
+  <entry>
+    <title>StreetLens — Northamptonshire: data updated</title>
+    <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?f=northamptonshire"/>
+    <id>https://krixengg-rgb.github.io/streetlens-cambs/public/?f=northamptonshire#update-2026-11-28</id>
+    <updated>2026-11-28T00:00:00Z</updated>
+    <summary>Recorded crimes in the 12 months 2025-10 to 2026-09: 73,855 (89.7 per 1,000 residents). Year-on-year -0.5%. Figures are police-recorded and locations are anonymised. Not a substitute for official community messaging.</summary>
+  </entry>
+</feed>

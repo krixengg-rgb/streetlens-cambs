@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build imd.json, flood.json, broadband.json for Cambridgeshire & Peterborough.
+"""Build imd.json, flood.json, broadband.json for one force (see forces.py).
 Downloads are large; cache under raw/. Safe to skip in weekly crime refresh if files exist
 unless --force. Sources: MHCLG IoD2025, EA RoFRS postcodes, Ofcom Connected Nations.
 """
@@ -8,14 +8,16 @@ from collections import defaultdict
 from datetime import date
 
 ROOT=os.path.join(os.path.dirname(__file__), '..')
-RAW=os.path.join(ROOT,'raw'); OUT=os.path.join(ROOT,'public','data')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import forces
+RAW=forces.RAW_NAT; OUT=forces.OUT
 os.makedirs(RAW, exist_ok=True); os.makedirs(OUT, exist_ok=True)
 UA={'User-Agent':'StreetLens-cambs/1.0 (+https://github.com/krixengg-rgb/streetlens-cambs)'}
-DIST_CODES={'E07000008','E07000009','E07000010','E07000011','E07000012','E06000031'}
-DIST_NAMES={'Cambridge','East Cambridgeshire','Fenland','Huntingdonshire','South Cambridgeshire','Peterborough'}
+DIST_CODES=set(forces.DIST)
+DIST_NAMES={v[0] for v in forces.DIST.values()}
 
 def get(url, dest):
-    if os.path.exists(dest) and '--force' not in sys.argv and os.path.getsize(dest)>1000:
+    if os.path.exists(dest) and ('--force' not in sys.argv or os.path.getmtime(dest)>__import__('time').time()-12*3600) and os.path.getsize(dest)>1000:
         print('cache', dest); return dest
     print('download', url[:90])
     req=urllib.request.Request(url, headers=UA)
@@ -48,12 +50,15 @@ def main():
     flood_zip=get('https://environment.data.gov.uk/api/file/download?fileDataSetId=97781741-2982-4802-af2e-313fe3fd8f7e&fileName=RoFRS_Postcodes_in_Areas_at_Risk.zip', os.path.join(RAW,'flood.zip'))
     with zipfile.ZipFile(flood_zip) as z:
         name=next(n for n in z.namelist() if n.endswith('RoFRS_PostcodesAtRisk.csv'))
+        areas=tuple(forces.CFG['pc_areas'])
         with z.open(name) as fh:
-            text=io.TextIOWrapper(fh, encoding='utf-8-sig')
+            rows=[r for r in csv.DictReader(io.TextIOWrapper(fh, encoding='utf-8-sig')) if (r['PC'] or '').strip().upper().startswith(areas)]
+        keep=forces.postcode_filter({(r['PC'] or '').strip().upper().replace(' ','')[:-3] for r in rows})
+        if True:
             flood={}
-            for row in csv.DictReader(text):
+            for row in rows:
                 pc=(row['PC'] or '').strip().upper().replace(' ','')
-                if not (pc.startswith('CB') or pc.startswith('PE')): continue
+                if not keep(pc): continue
                 def gi(k):
                     try: return int(float(row.get(k) or 0))
                     except: return 0
@@ -69,12 +74,17 @@ def main():
     with zipfile.ZipFile(ofcom_zip) as outer:
         with outer.open('postcode_res_files.zip') as inner_bytes:
             with zipfile.ZipFile(inner_bytes) as inner:
-                for area in ('CB','PE'):
+                orows=[]
+                for area in forces.CFG['pc_areas']:
                     fn=f'202501_fixed_pc_coverage_res_r01_{area}.csv'
                     with inner.open(fn) as fh:
-                        text=io.TextIOWrapper(fh, encoding='utf-8')
-                        for row in csv.DictReader(text):
+                        orows+=list(csv.DictReader(io.TextIOWrapper(fh, encoding='utf-8')))
+                keep=forces.postcode_filter({r['postcode'].strip().upper().replace(' ','')[:-3] for r in orows})
+                if True:
+                    if True:
+                        for row in orows:
                             raw=row['postcode'].strip().upper().replace(' ','')
+                            if not keep(raw): continue
                             try:
                                 g=float(row['Gigabit availability (% premises)'] or 0)
                                 s=float(row['SFBB availability (% premises)'] or 0)

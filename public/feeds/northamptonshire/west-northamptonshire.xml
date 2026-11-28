@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>StreetLens — West Northamptonshire</title>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?d=west-northamptonshire" rel="alternate"/>
+  <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/f/northamptonshire/west-northamptonshire.xml" rel="self"/>
+  <id>https://krixengg-rgb.github.io/streetlens-cambs/public/feeds/f/northamptonshire/west-northamptonshire.xml</id>
+  <updated>2026-11-28T00:00:00Z</updated>
+  <author><name>StreetLens</name></author>
+  <subtitle>Open crime and area figures for Northamptonshire. Not an official police alert service.</subtitle>
+  <entry>
+    <title>StreetLens — West Northamptonshire: data updated</title>
+    <link href="https://krixengg-rgb.github.io/streetlens-cambs/public/?d=west-northamptonshire"/>
+    <id>https://krixengg-rgb.github.io/streetlens-cambs/public/?d=west-northamptonshire#update-2026-11-28</id>
+    <updated>2026-11-28T00:00:00Z</updated>
+    <summary>West Northamptonshire: 41,176 recorded crimes in the 12 months 2025-10 to 2026-09 (92.7 per 1,000). Year-on-year +2.9%. Police-recorded, anonymised locations.</summary>
+  </entry>
+</feed>

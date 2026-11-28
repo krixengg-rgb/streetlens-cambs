@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>StreetLens embed</title>
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="stylesheet" href="style.css?v=30">
 <style>
   html,body{background:transparent;margin:0}
   .emb{font-family:Inter,system-ui,sans-serif;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--sh);max-width:420px}
@@ -26,13 +26,22 @@ const fmt=n=>Number(n).toLocaleString('en-GB');
 const slug=s=>s.toLowerCase().replace(/[^a-z]+/g,'-');
 const q=new URLSearchParams(location.search);
 const root=new URL('.', location.href);
+const FORCES=[{id:'cambridgeshire',base:'',name:'Cambridgeshire & Peterborough',dists:['Cambridge','East Cambridgeshire','Fenland','Huntingdonshire','South Cambridgeshire','Peterborough']},
+ {id:'northamptonshire',base:'f/northamptonshire/',name:'Northamptonshire',dists:['West Northamptonshire','North Northamptonshire']}];
 (async()=>{
   const el=document.getElementById('e');
   try{
-    const S=await fetch('data/summary.json').then(r=>r.json());
-    const period=S.months[0]+' to '+S.months.at(-1);
     const pc=q.get('pc'), d=q.get('d');
-    let title='Cambridgeshire & Peterborough', sub=period+' · police-recorded crime', href=root.href;
+    let F=FORCES.find(f=>f.id===q.get('f'))||(d&&FORCES.find(f=>f.dists.some(n=>slug(n)===d)))||FORCES[0], r=null;
+    if(pc){
+      r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc.replace(/\s+/g,''))).then(x=>x.json());
+      if(!r||r.status!=200){el.innerHTML='<p>Postcode not found.</p>';return}
+      F=FORCES.find(f=>f.dists.includes(r.result.admin_district))||null;
+      if(!F){el.innerHTML='<p>This postcode is not covered by StreetLens yet. Covered so far: '+FORCES.map(f=>f.name.replace('&','&amp;')).join(' and ')+'.</p>';return}
+    }
+    const S=await fetch('data/'+F.base+'summary.json').then(r=>r.json());
+    const period=S.months[0]+' to '+S.months.at(-1);
+    let title=F.name.replace('&','&amp;'), sub=period+' · police-recorded crime', href=root.href+(F===FORCES[0]?'':'?f='+F.id);
     let a=S.overview, extra='';
     if(d){
       const dist=S.districts.find(x=>slug(x.name)===d);
@@ -40,17 +49,15 @@ const root=new URL('.', location.href);
       a=dist; title=dist.name; href=root.href+'?d='+encodeURIComponent(d);
     }
     if(pc){
-      const r=await fetch('https://api.postcodes.io/postcodes/'+encodeURIComponent(pc.replace(/\\s+/g,''))).then(x=>x.json());
-      if(!r||r.status!=200){el.innerHTML='<p>Postcode not found.</p>';return}
       const ad=r.result.admin_district;
       const dist=S.districts.find(x=>x.name===ad);
-      if(!dist){el.innerHTML='<p>This postcode is outside Cambridgeshire &amp; Peterborough.</p>';return}
+      if(!dist){el.innerHTML='<p>Postcode not found.</p>';return}
       title=r.result.postcode; sub=(r.result.admin_ward?r.result.admin_ward+', ':'')+ad+' · district figures, '+period;
       href=root.href+'?pc='+encodeURIComponent(r.result.postcode);
       a=dist;
       let lsoaTxt='';
       try{
-        const lr=await fetch('data/lsoa_rates.json').then(x=>x.json());
+        const lr=await fetch('data/'+F.base+'lsoa_rates.json').then(x=>x.json());
         const code=r.result.codes&&(r.result.codes.lsoa21||r.result.codes.lsoa);
         const row=code&&lr.lsoa[code];
         if(row&&row.pct!=null) lsoaTxt=`Neighbourhood (LSOA) recorded rate ${row.rate} per 1,000 — lower than ${row.pct}% of local neighbourhoods (approximate).`;

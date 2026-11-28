@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Rebuild point tiles + LSOA rate estimates after points.json changes."""
-import json, os, math, csv, urllib.request, urllib.parse
+import json, os, sys, math, csv, urllib.request, urllib.parse
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import forces
 from collections import defaultdict, Counter
 from datetime import date
 
 ROOT=os.path.join(os.path.dirname(__file__), '..')
-OUT=os.path.join(ROOT,'public','data')
-RAW=os.path.join(ROOT,'raw')
+OUT=forces.OUT
+RAW=forces.RAW_NAT
 
 def build_tiles():
     pts=json.load(open(os.path.join(OUT,'points.json')))
@@ -30,16 +32,21 @@ def build_lsoa():
         print('skip lsoa rates: no imd.json'); return
     IMD=json.load(open(imd_path))['lsoa']; lsoas=list(IMD)
     UA={'User-Agent':'StreetLens-cambs/1.0'}
-    base='https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/LSOA_PopCentroids_EW_2021_V4/FeatureServer/0/query'
+    # ONS 2021 LSOA population-weighted centroids (OGL). The older services1 ...LSOA_PopCentroids_EW_2021_V4
+    # layer now needs a token, so use the same open layer as enrich_lsoa_and_feeds.py.
+    base='https://services-eu1.arcgis.com/6BsumkdKnml1ntNV/arcgis/rest/services/2021_LSOA_Population_Weighted_Centroid/FeatureServer/0/query'
     cents={}
     for i in range(0,len(lsoas),50):
         chunk=lsoas[i:i+50]
-        where="LSOA21CD IN ("+",".join(f"'{c}'" for c in chunk)+")"
-        qs=urllib.parse.urlencode({'where':where,'outFields':'LSOA21CD','returnGeometry':'true','outSR':'4326','f':'json'})
+        where="CODE IN ("+",".join(f"'{c}'" for c in chunk)+")"
+        qs=urllib.parse.urlencode({'where':where,'outFields':'CODE','returnGeometry':'true','outSR':'4326','f':'json'})
         data=json.load(urllib.request.urlopen(urllib.request.Request(base+'?'+qs,headers=UA), timeout=60))
+        if data.get('error'): raise SystemExit(f"centroid query failed: {data['error']}")
         for f in data.get('features',[]):
             g=f.get('geometry') or {}
-            cents[f['attributes']['LSOA21CD']]=(g.get('y'), g.get('x'))
+            cents[f['attributes']['CODE']]=(g.get('y'), g.get('x'))
+    if len(cents) < 0.95*len(lsoas):
+        raise SystemExit(f'too few LSOA centroids: {len(cents)}/{len(lsoas)}; leaving lsoa_rates.json unchanged')
     pop={}
     f7=os.path.join(RAW,'iod2025_file7.csv')
     if os.path.exists(f7):
@@ -76,7 +83,7 @@ def build_lsoa():
         if v['rate'] is None or len(vals)<2: v['band']=None; continue
         p=bisect.bisect_left(vals,v['rate'])/(len(vals)-1)
         v['band']='Low' if p<0.33 else 'Medium' if p<0.66 else 'High'
-    json.dump({'meta':{'source':'Nearest LSOA21 centroid assignment + IoD2025 mid-2022 population','note':'Approximate; not an official police LSOA count. Band = tertile within Cambridgeshire & Peterborough.','generated':date.today().isoformat()},'lsoa':rates},
+    json.dump({'meta':{'source':'Nearest LSOA21 centroid assignment + IoD2025 mid-2022 population','note':'Approximate; not an official police LSOA count. Band = tertile within '+forces.NAME+'.','generated':date.today().isoformat()},'lsoa':rates},
               open(os.path.join(OUT,'lsoa_rates.json'),'w'), separators=(',',':'))
     print('lsoa_rates', len(rates))
 

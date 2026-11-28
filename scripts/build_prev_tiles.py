@@ -7,24 +7,19 @@ tile is just [lat, lon] so the files stay small.
 import json, math, os, sys, time, urllib.parse, urllib.request
 from collections import defaultdict
 import concurrent.futures as cf
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import forces
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-OUT = os.path.join(ROOT, "public", "data")
-RAW = os.path.join(ROOT, "raw")
+OUT = forces.OUT
+RAW = forces.RAW
 TDIR = os.path.join(OUT, "prev_tiles")
 BFILE = os.path.join(RAW, "nb-boundaries.json")
 API = "https://data.police.uk/api"
 CELL = 0.05
 
 # Same neighbourhood list as refresh_data.py
-DIST = {
-    "E07000008": ("Cambridge", ["CamCity_City_Centre", "CamCity_East_City", "CamCity_North_City", "CamCity_South_City"]),
-    "E07000009": ("East Cambridgeshire", ["East_Cambridgeshire"]),
-    "E07000010": ("Fenland", ["March", "Wisbech"]),
-    "E07000011": ("Huntingdonshire", ["Huntingdon_and_Yaxley", "St_Ives_and_Ramsey", "St_Neots"]),
-    "E07000012": ("South Cambridgeshire", ["South_Cambridgeshire"]),
-    "E06000031": ("Peterborough", ["Peterborough_Central", "Peterborough_City_Centre", "Peterborough_Eastern", "Peterborough_Northern", "Peterborough_Southern"]),
-}
+DIST = forces.DIST
 NBS = [n for _, ns in DIST.values() for n in ns]
 
 
@@ -54,7 +49,7 @@ def load_boundaries():
             return b
     b = {}
     for n in NBS:
-        raw = json.loads(get(f"{API}/cambridgeshire/{n}/boundary"))
+        raw = json.loads(get(f"{API}/{forces.ID}/{n}/boundary"))
         if len(raw) < 3:
             raise SystemExit(f"boundary too small for {n}")
         b[n] = ":".join(f"{p['latitude']},{p['longitude']}" for p in raw)
