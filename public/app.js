@@ -1193,7 +1193,7 @@ async function goPlace(it){try{
  }catch{$('#serr').textContent='Could not look up that place.'}}
 /* ---------- home & district ---------- */
 
-function simpleCluster(){return L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50,iconCreateFunction:g=>{const n=g.getChildCount(),s=n<10?44:n<100?48:54;return L.divIcon({className:'',html:`<div class="cl" style="width:${s}px;height:${s}px;background:${LAYERS.crimes.c}">${n}</div>`,iconSize:[s,s]})}})}
+function simpleCluster(){return L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50,chunkedLoading:true,chunkInterval:120,iconCreateFunction:g=>{const n=g.getChildCount(),s=n<10?44:n<100?48:54;return L.divIcon({className:'',html:`<div class="cl" style="width:${s}px;height:${s}px;background:${LAYERS.crimes.c}">${n}</div>`,iconSize:[s,s]})}})}
 function osmLayer(){return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'})}
 function svUrl(lat,lng){
   const a=Number(lat), b=Number(lng);
@@ -1481,7 +1481,7 @@ async function dashboardSimple(raw){
     L.circle([la,lo],{radius:rMi*1609.34,color:'#0f766e',weight:2,fillOpacity:.04}).addTo(map);
     L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:44px;height:44px;background:#14213d">${ic('pin',20)}</div>`,iconSize:[44,44],iconAnchor:[22,22]}),zIndexOffset:1000,keyboard:true,title:postcode}).addTo(map).bindPopup('<b>'+postcode+'</b><br>'+svLink(la,lo,{approx:false}));
     const g=simpleCluster();
-    nearAll.forEach(p=>g.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}) .bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br>${svLink(p[0],p[1],{approx:true})}`)));
+    nearAll.forEach(p=>g.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}) .bindPopup(()=>`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br>${svLink(p[0],p[1],{approx:true})}`)));
     map.addLayer(g);
     addStreetViewControl(map);
   }catch{const sm=$('#smap'); if(sm) sm.innerHTML='<p class="muted">The map could not be loaded just now.</p>'}
@@ -1807,9 +1807,9 @@ async function dashboard(raw){if(isSimple())return dashboardSimple(raw);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
  const area=L.circle([la,lo],{radius:rMi*1609.34,color:'#0f766e',weight:2,fillOpacity:.04}).addTo(map);
  L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div class="pin" style="width:34px;height:34px;background:#14213d">${ic('pin',18)}</div>`,iconSize:[34,34],iconAnchor:[17,17]}),zIndexOffset:1000,keyboard:true,title:postcode}).addTo(map).bindPopup('<b>'+postcode+'</b>');
- const clus=c=>L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50,iconCreateFunction:g=>{const n=g.getChildCount(),s=n<10?44:n<100?48:54;return L.divIcon({className:'',html:`<div class="cl" style="width:${s}px;height:${s}px;background:${c}">${n}</div>`,iconSize:[s,s]})}});
+ const clus=c=>L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50,chunkedLoading:true,chunkInterval:120,iconCreateFunction:g=>{const n=g.getChildCount(),s=n<10?44:n<100?48:54;return L.divIcon({className:'',html:`<div class="cl" style="width:${s}px;height:${s}px;background:${c}">${n}</div>`,iconSize:[s,s]})}});
  const pinI=(k,s=28)=>L.divIcon({className:'',html:`<div class="pin" style="width:${s}px;height:${s}px;background:${LAYERS[k].c}">${ic(LAYERS[k].i,s*.55|0)}</div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});
- const crimeL=clus(LAYERS.crimes.c);near.forEach(p=>crimeL.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}).bindPopup(`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br><i>${S.outcomeBuckets[p[4]]}</i><br>${svLink(p[0],p[1],{approx:true})}`)));
+ const crimeL=clus(LAYERS.crimes.c);near.forEach(p=>crimeL.addLayer(L.circleMarker([p[0],p[1]],{radius:6,color:'#fff',weight:1.5,fillColor:LAYERS.crimes.c,fillOpacity:.95}).bindPopup(()=>`<b>${cn(cats[p[2]])}</b><br>${mname(S.months[p[3]])}<br><i>${S.outcomeBuckets[p[4]]}</i><br>${svLink(p[0],p[1],{approx:true})}`)));
  const within=(arr,mi)=>arr.filter(p=>hav(la,lo,p[0],p[1])<=mi);
  const grp=(arr,k,pop,mi=5)=>{const g=clus(LAYERS[k].c);within(arr,mi).forEach(p=>g.addLayer(L.marker([p[0],p[1]],{icon:pinI(k),title:p[2]}).bindPopup(pop(p))));return g};
  const ML={crimes:crimeL,heat:L.layerGroup()};
